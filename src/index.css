@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply bg-black text-white font-mono;
+  overscroll-behavior: none;
+}
+
+/* Full viewport height that respects mobile browser chrome */
+.h-screen-safe {
+  height: 100dvh;
+}
+
+/* Custom selection color */
+::selection {
+  @apply bg-white/20;
+}
+
+/* Remove default input styling */
+input {
+  @apply bg-transparent border-none outline-none;
+}
+
+input::placeholder {
+  @apply text-white/30;
+}
+
+/* Hide caret when we show custom cursor */
+.hide-caret {
+  caret-color: transparent;
+}

@@ -12,7 +12,7 @@ import { LensFocusPage } from '../components/transitions/LensFocus'
  * Features staggered text reveal like a typewriter/printing effect.
  */
 export function Letter() {
-  const { username, personaId, resetFlow } = useProxy()
+  const { username, personaId, resetFlow, acceptProxy } = useProxy()
   const [showButton, setShowButton] = useState(false)
 
   const persona = PERSONAS[personaId]
@@ -134,11 +134,7 @@ export function Letter() {
             transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
           >
             <motion.button
-              onClick={() => {
-                // In Phase 2, this would go to dashboard
-                // For now, show completion state
-                alert('Phase 1 Complete! In Phase 2, this leads to your personalized dashboard.')
-              }}
+              onClick={acceptProxy}
               className="w-full p-4 md:p-5 rounded-sm font-mono text-sm tracking-wider transition-all duration-300"
               style={{
                 backgroundColor: accentColor,

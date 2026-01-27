@@ -7,93 +7,101 @@ import { CursorBlink } from '../components/ui/CursorBlink'
 /**
  * Vault Entrance (Login/Signup)
  *
- * Speakeasy-style authentication:
- * - Terminal aesthetic
- * - Username + Password (no email)
- * - "ACCESS GRANTED" / "ACCESS DENIED" effects
+ * Simplified auth flow for demo (no passwords):
+ * - Ask if new user → Yes/No
+ * - New user: enter name → create profile → onboarding
+ * - Existing user: enter name → lookup profile → dashboard
  */
 export function VaultEntrance() {
-  const { signIn, signUp, isOnline } = useAuth()
+  const { login, createUser, isOnline } = useAuth()
   const { setStage, setUsername } = useProxy()
 
-  const [mode, setMode] = useState('identify') // identify -> password -> processing -> result
+  // Modes: 'ask' -> 'identify' (existing) or 'create' (new) -> 'processing' -> 'result'
+  const [mode, setMode] = useState('ask')
   const [isNewUser, setIsNewUser] = useState(false)
-  const [username, setUsernameLocal] = useState('')
-  const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null) // 'granted' | 'denied'
 
   const inputRef = useRef(null)
 
   useEffect(() => {
-    const timer = setTimeout(() => inputRef.current?.focus(), 500)
-    return () => clearTimeout(timer)
+    if (mode === 'identify' || mode === 'create') {
+      const timer = setTimeout(() => inputRef.current?.focus(), 500)
+      return () => clearTimeout(timer)
+    }
   }, [mode])
 
-  const handleUsernameSubmit = (e) => {
-    e.preventDefault()
-    const trimmed = username.trim()
-    if (!trimmed) return
-
-    setMode('password')
+  const handleNewUserChoice = (isNew) => {
+    setIsNewUser(isNew)
+    setMode(isNew ? 'create' : 'identify')
     setError(null)
   }
 
-  const handlePasswordSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!password) return
+    const trimmed = name.trim()
+    if (!trimmed) return
 
     setMode('processing')
     setError(null)
 
-    // Try sign in first
-    const { error: signInError } = await signIn(username, password)
+    if (isNewUser) {
+      // Clear any old localStorage data for fresh start
+      localStorage.removeItem('proxy_answers')
+      localStorage.removeItem('proxy_persona_id')
+      localStorage.removeItem('proxy_accepted')
+      localStorage.removeItem('proxy_chat_history')
+      localStorage.removeItem('proxy_ledger_entries')
 
-    if (signInError) {
-      // If invalid credentials, try signup (new user)
-      if (signInError.message.includes('Invalid login credentials')) {
-        const { error: signUpError } = await signUp(username, password)
+      // Create new user
+      const { data, error: createError } = await createUser(trimmed)
 
-        if (signUpError) {
-          setResult('denied')
-          setError(signUpError.message)
-          setTimeout(() => {
-            setMode('identify')
-            setResult(null)
-            setUsernameLocal('')
-            setPassword('')
-          }, 2000)
-          return
-        }
-
-        // New user - needs onboarding
-        setIsNewUser(true)
-      } else {
+      if (createError) {
         setResult('denied')
-        setError(signInError.message)
+        setError(createError.message)
         setTimeout(() => {
-          setMode('identify')
+          setMode('create')
           setResult(null)
-          setUsernameLocal('')
-          setPassword('')
+          setName('')
         }, 2000)
         return
       }
-    }
 
-    // Success
-    setResult('granted')
-    setUsername(username)
-
-    setTimeout(() => {
-      if (isNewUser) {
-        // New user goes to onboarding (diagnostic)
+      // Success - new user goes to onboarding
+      setResult('granted')
+      setUsername(trimmed)
+      setTimeout(() => {
         setStage(STAGES.DIAGNOSTIC)
-      } else {
-        // Existing user goes to dashboard
-        setStage(STAGES.DASHBOARD)
+      }, 1500)
+    } else {
+      // Find existing user
+      const { data, error: loginError } = await login(trimmed)
+
+      if (loginError) {
+        setResult('denied')
+        setError(loginError.message)
+        setTimeout(() => {
+          setMode('identify')
+          setResult(null)
+          setName('')
+        }, 2000)
+        return
       }
-    }, 1500)
+
+      // Success - existing user goes to dashboard
+      setResult('granted')
+      setUsername(data.display_name || trimmed)
+      setTimeout(() => {
+        // Check if they have a persona (completed onboarding)
+        if (data.persona_id) {
+          setStage(STAGES.DASHBOARD)
+        } else {
+          // No persona yet, send to onboarding
+          setStage(STAGES.DIAGNOSTIC)
+        }
+      }, 1500)
+    }
   }
 
   return (
@@ -159,12 +167,46 @@ export function VaultEntrance() {
           </h1>
         </motion.div>
 
-        {/* Identify step */}
         <AnimatePresence mode="wait">
+          {/* Step 1: Ask if new user */}
+          {mode === 'ask' && (
+            <motion.div
+              key="ask"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="text-center"
+            >
+              <p className="text-white/90 font-mono text-lg mb-8">
+                Are you a new visitor?
+              </p>
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={() => handleNewUserChoice(true)}
+                  className="px-8 py-3 border border-white/30 text-white/70 font-mono text-sm
+                           hover:border-white/60 hover:text-white hover:bg-white/5
+                           transition-all duration-300 tracking-wider"
+                >
+                  YES
+                </button>
+                <button
+                  onClick={() => handleNewUserChoice(false)}
+                  className="px-8 py-3 border border-white/30 text-white/70 font-mono text-sm
+                           hover:border-white/60 hover:text-white hover:bg-white/5
+                           transition-all duration-300 tracking-wider"
+                >
+                  NO
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 2a: Identify existing user */}
           {mode === 'identify' && (
             <motion.form
               key="identify"
-              onSubmit={handleUsernameSubmit}
+              onSubmit={handleSubmit}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -179,53 +221,14 @@ export function VaultEntrance() {
                   <input
                     ref={inputRef}
                     type="text"
-                    value={username}
-                    onChange={(e) => setUsernameLocal(e.target.value)}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="w-full bg-transparent text-white font-mono text-lg outline-none hide-caret"
-                    autoComplete="username"
+                    autoComplete="off"
                     autoCapitalize="off"
                   />
                   <span className="absolute top-0 left-0 pointer-events-none font-mono text-lg text-transparent">
-                    {username}<CursorBlink />
-                  </span>
-                </div>
-              </div>
-              <div className="mt-4 h-px bg-white/20" />
-              <p className="mt-6 text-white/20 font-mono text-xs tracking-wider">
-                PRESS ENTER TO CONTINUE
-              </p>
-            </motion.form>
-          )}
-
-          {/* Password step */}
-          {mode === 'password' && (
-            <motion.form
-              key="password"
-              onSubmit={handlePasswordSubmit}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.4 }}
-            >
-              <p className="text-white/50 font-mono text-sm mb-2">
-                IDENTITY: {username}
-              </p>
-              <label className="block text-white/90 font-mono text-lg mb-6">
-                Enter passphrase.
-              </label>
-              <div className="flex items-center">
-                <span className="text-white/40 font-mono mr-3">{'>'}</span>
-                <div className="relative flex-1">
-                  <input
-                    ref={inputRef}
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-transparent text-white font-mono text-lg outline-none hide-caret tracking-widest"
-                    autoComplete="current-password"
-                  />
-                  <span className="absolute top-0 left-0 pointer-events-none font-mono text-lg text-transparent tracking-widest">
-                    {'•'.repeat(password.length)}<CursorBlink />
+                    {name}<CursorBlink />
                   </span>
                 </div>
               </div>
@@ -234,8 +237,57 @@ export function VaultEntrance() {
                 <button
                   type="button"
                   onClick={() => {
-                    setMode('identify')
-                    setPassword('')
+                    setMode('ask')
+                    setName('')
+                  }}
+                  className="text-white/30 font-mono text-xs hover:text-white/50 transition-colors"
+                >
+                  ← BACK
+                </button>
+                <p className="text-white/20 font-mono text-xs tracking-wider">
+                  PRESS ENTER
+                </p>
+              </div>
+            </motion.form>
+          )}
+
+          {/* Step 2b: Create new user */}
+          {mode === 'create' && (
+            <motion.form
+              key="create"
+              onSubmit={handleSubmit}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+            >
+              <label className="block text-white/90 font-mono text-lg mb-6">
+                What's your name?
+              </label>
+              <div className="flex items-center">
+                <span className="text-white/40 font-mono mr-3">{'>'}</span>
+                <div className="relative flex-1">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-transparent text-white font-mono text-lg outline-none hide-caret"
+                    autoComplete="off"
+                    autoCapitalize="words"
+                  />
+                  <span className="absolute top-0 left-0 pointer-events-none font-mono text-lg text-transparent">
+                    {name}<CursorBlink />
+                  </span>
+                </div>
+              </div>
+              <div className="mt-4 h-px bg-white/20" />
+              <div className="mt-6 flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('ask')
+                    setName('')
                   }}
                   className="text-white/30 font-mono text-xs hover:text-white/50 transition-colors"
                 >
@@ -262,7 +314,7 @@ export function VaultEntrance() {
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 1, repeat: Infinity }}
               >
-                VERIFYING CREDENTIALS
+                {isNewUser ? 'CREATING PROFILE' : 'VERIFYING IDENTITY'}
               </motion.p>
               <div className="mt-6 flex justify-center gap-1">
                 {[0, 1, 2].map((i) => (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useProxy } from '../context/ProxyContext'
 import { useAuth } from '../context/AuthContext'
@@ -18,7 +18,7 @@ import { LensFocusPage } from '../components/transitions/LensFocus'
  */
 export function Dashboard() {
   const { username, personaId, resetFlow } = useProxy()
-  const { signOut, isOnline } = useAuth()
+  const { logout, isOnline } = useAuth()
   const theme = THEMES[personaId]
   const personaName = PERSONA_NAMES[personaId]
 
@@ -33,20 +33,28 @@ export function Dashboard() {
 
   const [isTyping, setIsTyping] = useState(false)
   const [ledgerOpen, setLedgerOpen] = useState(false)
-  const [welcomeSent, setWelcomeSent] = useState(false)
+  const welcomeSentRef = useRef(false)
 
   // Send welcome message on first visit
   useEffect(() => {
-    if (!messagesLoading && isEmpty && !welcomeSent) {
-      setWelcomeSent(true)
+    // Only run once when we have a valid personaId and messages are loaded
+    if (!messagesLoading && isEmpty && !welcomeSentRef.current && personaId && WELCOME_MESSAGES[personaId]) {
+      welcomeSentRef.current = true
       setIsTyping(true)
-      const timer = setTimeout(() => {
-        addProxyMessage(WELCOME_MESSAGES[personaId])
+
+      const welcomeMsg = WELCOME_MESSAGES[personaId]
+      const timer = setTimeout(async () => {
+        await addProxyMessage(welcomeMsg)
         setIsTyping(false)
       }, 1500)
-      return () => clearTimeout(timer)
+
+      return () => {
+        clearTimeout(timer)
+        // If cleanup runs before timer fires, reset typing state
+        setIsTyping(false)
+      }
     }
-  }, [messagesLoading, isEmpty, welcomeSent, personaId, addProxyMessage])
+  }, [messagesLoading, isEmpty, personaId, addProxyMessage])
 
   // Handle user message and ghost response
   const handleSend = useCallback(async (text) => {
@@ -61,9 +69,9 @@ export function Dashboard() {
   }, [addUserMessage, addProxyMessage, personaId])
 
   // Handle logout
-  const handleLogout = async () => {
+  const handleLogout = () => {
     if (isOnline) {
-      await signOut()
+      logout()
     }
     resetFlow()
   }

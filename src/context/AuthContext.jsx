@@ -4,45 +4,21 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isOnline, setIsOnline] = useState(isSupabaseConfigured())
 
-  // Initialize auth state
+  // Check for existing session on mount
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
+    const savedUserId = localStorage.getItem('proxy_user_id')
+    if (savedUserId && isSupabaseConfigured()) {
+      fetchProfile(savedUserId)
+    } else {
       setLoading(false)
-      return
     }
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-        } else {
-          setProfile(null)
-        }
-        setLoading(false)
-      }
-    )
-
-    return () => subscription.unsubscribe()
   }, [])
 
-  // Fetch user profile
+  // Fetch user profile by ID
   const fetchProfile = async (userId) => {
     if (!supabase) return null
 
@@ -50,80 +26,97 @@ export function AuthProvider({ children }) {
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
 
-    if (error) {
-      console.error('Error fetching profile:', error)
-      setLoading(false)
-      return null
+    if (data) {
+      setProfile(data)
+      localStorage.setItem('proxy_user_id', data.id)
+    } else {
+      if (error) console.log('Profile fetch error:', error.message)
+      localStorage.removeItem('proxy_user_id')
     }
 
-    setProfile(data)
     setLoading(false)
     return data
   }
 
-  // Sign up with username/password
-  const signUp = async (username, password) => {
+  // Login - find existing user by username
+  const login = async (username) => {
     if (!supabase) {
       return { error: { message: 'Database not configured' } }
     }
 
-    // Create auth user with username in metadata
-    const { data, error } = await supabase.auth.signUp({
-      email: `${username.toLowerCase()}@proxy.local`, // Fake email for auth
-      password,
-      options: {
-        data: { username }
-      }
-    })
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', username.toLowerCase())
+      .maybeSingle()
 
     if (error) {
-      // Handle duplicate username
-      if (error.message.includes('already registered')) {
-        return { error: { message: 'Username already taken' } }
-      }
-      return { error }
+      console.log('Login error:', error)
+      return { error: { message: 'Login failed' } }
     }
 
+    if (!data) {
+      return { error: { message: 'User not found' } }
+    }
+
+    setProfile(data)
+    localStorage.setItem('proxy_user_id', data.id)
     return { data, error: null }
   }
 
-  // Sign in with username/password
-  const signIn = async (username, password) => {
+  // Create new user
+  const createUser = async (username) => {
     if (!supabase) {
       return { error: { message: 'Database not configured' } }
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: `${username.toLowerCase()}@proxy.local`,
-      password
-    })
+    // Check if username already exists (use maybeSingle to avoid 406 error)
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username.toLowerCase())
+      .maybeSingle()
+
+    if (existing) {
+      return { error: { message: 'Name already taken' } }
+    }
+
+    // Create new profile
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert({
+        username: username.toLowerCase(),
+        display_name: username,
+      })
+      .select()
+      .single()
 
     if (error) {
+      console.log('Create user error:', error)
       return { error }
     }
 
+    setProfile(data)
+    localStorage.setItem('proxy_user_id', data.id)
     return { data, error: null }
   }
 
-  // Sign out
-  const signOut = async () => {
-    if (!supabase) return
-
-    await supabase.auth.signOut()
-    setUser(null)
+  // Logout
+  const logout = () => {
     setProfile(null)
+    localStorage.removeItem('proxy_user_id')
   }
 
   // Update profile (e.g., set persona after onboarding)
   const updateProfile = async (updates) => {
-    if (!supabase || !user) return { error: { message: 'Not authenticated' } }
+    if (!supabase || !profile) return { error: { message: 'Not logged in' } }
 
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
-      .eq('id', user.id)
+      .eq('id', profile.id)
       .select()
       .single()
 
@@ -136,16 +129,14 @@ export function AuthProvider({ children }) {
   }
 
   const value = {
-    user,
     profile,
     loading,
     isOnline,
-    isAuthenticated: !!user,
-    signUp,
-    signIn,
-    signOut,
+    isAuthenticated: !!profile,
+    login,
+    createUser,
+    logout,
     updateProfile,
-    fetchProfile,
   }
 
   return (

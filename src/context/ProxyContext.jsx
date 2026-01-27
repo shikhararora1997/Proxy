@@ -16,7 +16,7 @@ export const STAGES = {
 }
 
 export function ProxyProvider({ children }) {
-  const { user, profile, isAuthenticated, loading: authLoading, updateProfile } = useAuth()
+  const { profile, isAuthenticated, loading: authLoading, updateProfile } = useAuth()
 
   const [username, setUsername] = useLocalStorage('username', null)
   const [personaId, setPersonaId] = useLocalStorage('persona_id', null)
@@ -53,7 +53,7 @@ export function ProxyProvider({ children }) {
   // Sync persona to Supabase when set
   const setPersonaIdWithSync = async (id) => {
     setPersonaId(id)
-    if (isSupabaseConfigured() && user) {
+    if (isSupabaseConfigured() && profile) {
       await updateProfile({ persona_id: id })
     }
   }
@@ -61,7 +61,7 @@ export function ProxyProvider({ children }) {
   // Accept proxy and mark onboarding complete
   const acceptProxy = async () => {
     setHasAccepted(true)
-    if (isSupabaseConfigured() && user) {
+    if (isSupabaseConfigured() && profile) {
       await updateProfile({ onboarding_complete: true })
     }
     setStage(STAGES.DASHBOARD)
@@ -98,6 +98,7 @@ export function ProxyProvider({ children }) {
       localStorage.removeItem('proxy_accepted')
       localStorage.removeItem('proxy_chat_history')
       localStorage.removeItem('proxy_ledger_entries')
+      localStorage.removeItem('proxy_user_id')
 
       // Force reload to reset all state cleanly
       window.location.reload()

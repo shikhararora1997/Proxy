@@ -9,13 +9,13 @@ const LOCAL_STORAGE_KEY = 'proxy_ledger_entries'
  * Falls back to localStorage if Supabase is not configured
  */
 export function useLedger() {
-  const { user } = useAuth()
+  const { profile } = useAuth()
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Fetch entries
   const fetchEntries = useCallback(async () => {
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured() || !profile) {
       // Fallback to localStorage
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (stored) {
@@ -32,7 +32,7 @@ export function useLedger() {
     const { data, error } = await supabase
       .from('ledger_entries')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -41,7 +41,7 @@ export function useLedger() {
       setEntries(data || [])
     }
     setLoading(false)
-  }, [user])
+  }, [profile])
 
   useEffect(() => {
     fetchEntries()
@@ -61,14 +61,14 @@ export function useLedger() {
       amount,
       status: 'pending',
       created_at: new Date().toISOString(),
-      user_id: user?.id,
+      user_id: profile?.id,
     }
 
     // Optimistic update
     const updated = [newEntry, ...entries]
     setEntries(updated)
 
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured() || !profile) {
       saveToLocal(updated)
       return newEntry
     }
@@ -76,7 +76,7 @@ export function useLedger() {
     const { data, error } = await supabase
       .from('ledger_entries')
       .insert({
-        user_id: user.id,
+        user_id: profile.id,
         description,
         category,
         amount,
@@ -93,7 +93,7 @@ export function useLedger() {
 
     setEntries(prev => prev.map(e => e.id === newEntry.id ? data : e))
     return data
-  }, [user, entries, saveToLocal])
+  }, [profile, entries, saveToLocal])
 
   // Update entry status
   const updateStatus = useCallback(async (id, status) => {
@@ -101,7 +101,7 @@ export function useLedger() {
     const updated = entries.map(e => e.id === id ? { ...e, status } : e)
     setEntries(updated)
 
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured() || !profile) {
       saveToLocal(updated)
       return true
     }
@@ -118,7 +118,7 @@ export function useLedger() {
     }
 
     return true
-  }, [user, entries, saveToLocal])
+  }, [profile, entries, saveToLocal])
 
   // Resolve entry
   const resolveEntry = useCallback((id) => {
@@ -136,7 +136,7 @@ export function useLedger() {
     const updated = entries.filter(e => e.id !== id)
     setEntries(updated)
 
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured() || !profile) {
       saveToLocal(updated)
       return true
     }
@@ -153,7 +153,7 @@ export function useLedger() {
     }
 
     return true
-  }, [user, entries, saveToLocal])
+  }, [profile, entries, saveToLocal])
 
   return {
     entries,

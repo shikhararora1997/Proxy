@@ -7,13 +7,13 @@ import { useAuth } from '../context/AuthContext'
  * Falls back to localStorage if Supabase is not configured
  */
 export function useMessages() {
-  const { user, isOnline } = useAuth()
+  const { profile } = useAuth()
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Fetch messages from Supabase
   const fetchMessages = useCallback(async () => {
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured() || !profile) {
       // Fallback to localStorage
       const stored = localStorage.getItem('proxy_chat_history')
       if (stored) {
@@ -30,7 +30,7 @@ export function useMessages() {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', profile.id)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -39,7 +39,7 @@ export function useMessages() {
       setMessages(data || [])
     }
     setLoading(false)
-  }, [user])
+  }, [profile])
 
   useEffect(() => {
     fetchMessages()
@@ -52,13 +52,13 @@ export function useMessages() {
       sender,
       content,
       created_at: new Date().toISOString(),
-      user_id: user?.id,
+      user_id: profile?.id,
     }
 
     // Optimistic update
     setMessages(prev => [...prev, newMessage])
 
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured() || !profile) {
       // Save to localStorage
       const updated = [...messages, newMessage]
       localStorage.setItem('proxy_chat_history', JSON.stringify(updated))
@@ -68,7 +68,7 @@ export function useMessages() {
     const { data, error } = await supabase
       .from('messages')
       .insert({
-        user_id: user.id,
+        user_id: profile.id,
         sender,
         content,
       })
@@ -85,7 +85,7 @@ export function useMessages() {
     // Update with real data
     setMessages(prev => prev.map(m => m.id === newMessage.id ? data : m))
     return data
-  }, [user, messages])
+  }, [profile, messages])
 
   const addUserMessage = useCallback((content) => {
     return addMessage('user', content)
@@ -96,7 +96,7 @@ export function useMessages() {
   }, [addMessage])
 
   const clearMessages = useCallback(async () => {
-    if (!isSupabaseConfigured() || !user) {
+    if (!isSupabaseConfigured() || !profile) {
       localStorage.removeItem('proxy_chat_history')
       setMessages([])
       return
@@ -105,14 +105,14 @@ export function useMessages() {
     const { error } = await supabase
       .from('messages')
       .delete()
-      .eq('user_id', user.id)
+      .eq('user_id', profile.id)
 
     if (error) {
       console.error('Error clearing messages:', error)
     } else {
       setMessages([])
     }
-  }, [user])
+  }, [profile])
 
   return {
     messages,

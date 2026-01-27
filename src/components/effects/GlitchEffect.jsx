@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PERSONAS } from '../../config/personas'
 
@@ -12,6 +13,24 @@ import { PERSONAS } from '../../config/personas'
 export function GlitchEffect({ isActive, personaId, onComplete }) {
   const persona = PERSONAS[personaId]
   const color = persona?.colors.primary || '#ffffff'
+  const callbackFired = useRef(false)
+
+  useEffect(() => {
+    if (!isActive) {
+      callbackFired.current = false
+      return
+    }
+
+    callbackFired.current = false
+    const timer = setTimeout(() => {
+      if (!callbackFired.current) {
+        callbackFired.current = true
+        onComplete?.()
+      }
+    }, 550)
+
+    return () => clearTimeout(timer)
+  }, [isActive, onComplete])
 
   return (
     <AnimatePresence>
@@ -21,7 +40,6 @@ export function GlitchEffect({ isActive, personaId, onComplete }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onAnimationComplete={onComplete}
         >
           {/* Base color flash */}
           <motion.div

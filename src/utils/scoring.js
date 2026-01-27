@@ -1,18 +1,30 @@
-import { PERSONA_PRIORITY } from '../config/personas'
+import { ALL_PERSONA_IDS } from '../config/personas'
 
 /**
- * Calculate the winning persona from answers
+ * Calculate the winning persona from weighted answers
  *
- * @param {Array<{questionId: string, personaId: string}>} answers
- * @returns {string} The winning persona ID (p1, p2, p3, or p4)
+ * Each answer has a `weights` object: { personaId: points }
+ * Points are summed across all answers.
+ * Ties are broken randomly.
+ *
+ * @param {Array<{questionId: string, weights: Object}>} answers
+ * @returns {string} The winning persona ID (p1-p10)
  */
 export function calculatePersona(answers) {
-  // Tally points per persona
-  const scores = answers.reduce((acc, answer) => {
-    const persona = answer.personaId
-    acc[persona] = (acc[persona] || 0) + 1
-    return acc
-  }, {})
+  // Initialize scores for all personas
+  const scores = {}
+  for (const id of ALL_PERSONA_IDS) {
+    scores[id] = 0
+  }
+
+  // Tally weighted points from each answer
+  for (const answer of answers) {
+    if (answer.weights) {
+      for (const [personaId, points] of Object.entries(answer.weights)) {
+        scores[personaId] = (scores[personaId] || 0) + points
+      }
+    }
+  }
 
   // Find highest score
   const maxScore = Math.max(...Object.values(scores))
@@ -22,13 +34,9 @@ export function calculatePersona(answers) {
     .filter(([, score]) => score === maxScore)
     .map(([personaId]) => personaId)
 
-  // If tie, use priority order (p1 > p2 > p3 > p4)
+  // If tie, pick randomly
   if (winners.length > 1) {
-    for (const personaId of PERSONA_PRIORITY) {
-      if (winners.includes(personaId)) {
-        return personaId
-      }
-    }
+    return winners[Math.floor(Math.random() * winners.length)]
   }
 
   return winners[0]

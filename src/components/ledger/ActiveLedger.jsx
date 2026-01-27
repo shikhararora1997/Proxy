@@ -3,29 +3,55 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { THEMES } from '../../config/themes'
 import { useLedger } from '../../hooks/useLedger'
 
+const PRIORITY_CONFIG = {
+  high: { label: 'HIGH', color: '#EF4444' },
+  medium: { label: 'MEDIUM', color: '#F59E0B' },
+  low: { label: 'LOW', color: '#22C55E' },
+}
+
 /**
- * Active Ledger - Interactive sidebar/drawer
+ * Active Ledger - Task list sidebar/drawer with priority sublists
  *
  * Desktop: Right-hand sidebar
  * Mobile: Swipe-out drawer from right
  */
-export function ActiveLedger({ personaId, isOpen, onClose }) {
+export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
   const theme = THEMES[personaId]
-  const { entries, loading, addEntry, resolveEntry, deleteEntry, pendingCount } = useLedger()
+  // Use shared ledger from Dashboard (or fallback to own hook)
+  const ownLedger = useLedger()
+  const {
+    visibleEntries,
+    loading,
+    addEntry,
+    completeEntry,
+    uncompleteEntry,
+    deleteEntry,
+    pendingCount,
+  } = ledger || ownLedger
   const [newItem, setNewItem] = useState('')
+  const [newPriority, setNewPriority] = useState('medium')
   const [isAdding, setIsAdding] = useState(false)
 
   const handleAddEntry = async (e) => {
     e.preventDefault()
     if (!newItem.trim()) return
 
-    await addEntry(newItem.trim())
+    await addEntry(newItem.trim(), null, null, newPriority)
     setNewItem('')
+    setNewPriority('medium')
     setIsAdding(false)
   }
 
-  const pendingEntries = entries.filter(e => e.status === 'pending')
-  const resolvedEntries = entries.filter(e => e.status === 'resolved')
+  // Group by priority, with completed items sorted to bottom of each group
+  const sortGroup = (items) => {
+    const pending = items.filter(e => e.status === 'pending')
+    const completed = items.filter(e => e.status === 'resolved')
+    return [...pending, ...completed]
+  }
+
+  const highTasks = sortGroup(visibleEntries.filter(e => e.priority === 'high'))
+  const mediumTasks = sortGroup(visibleEntries.filter(e => e.priority === 'medium' || !e.priority))
+  const lowTasks = sortGroup(visibleEntries.filter(e => e.priority === 'low'))
 
   return (
     <>
@@ -69,7 +95,7 @@ export function ActiveLedger({ personaId, isOpen, onClose }) {
               className={`${theme.font.display} text-sm tracking-wider`}
               style={{ color: theme.text.secondary }}
             >
-              ACTIVE LEDGER
+              TASKS
             </h2>
             {pendingCount > 0 && (
               <span
@@ -104,61 +130,47 @@ export function ActiveLedger({ personaId, isOpen, onClose }) {
             </div>
           ) : (
             <>
-              {/* Pending entries */}
-              <div className="space-y-2 mb-6">
+              <PrioritySection
+                label="HIGH"
+                color={PRIORITY_CONFIG.high.color}
+                tasks={highTasks}
+                theme={theme}
+                onComplete={completeEntry}
+                onUncomplete={uncompleteEntry}
+                onDelete={deleteEntry}
+              />
+              <PrioritySection
+                label="MEDIUM"
+                color={PRIORITY_CONFIG.medium.color}
+                tasks={mediumTasks}
+                theme={theme}
+                onComplete={completeEntry}
+                onUncomplete={uncompleteEntry}
+                onDelete={deleteEntry}
+              />
+              <PrioritySection
+                label="LOW"
+                color={PRIORITY_CONFIG.low.color}
+                tasks={lowTasks}
+                theme={theme}
+                onComplete={completeEntry}
+                onUncomplete={uncompleteEntry}
+                onDelete={deleteEntry}
+              />
+
+              {visibleEntries.length === 0 && (
                 <p
-                  className={`${theme.font.chat} text-[10px] tracking-wider mb-3`}
+                  className={`${theme.font.chat} text-xs italic text-center mt-8`}
                   style={{ color: theme.text.muted }}
                 >
-                  PENDING
+                  No tasks yet
                 </p>
-                {pendingEntries.length === 0 ? (
-                  <p
-                    className={`${theme.font.chat} text-xs italic`}
-                    style={{ color: theme.text.muted }}
-                  >
-                    No pending items
-                  </p>
-                ) : (
-                  pendingEntries.map((entry, index) => (
-                    <LedgerItem
-                      key={entry.id}
-                      entry={entry}
-                      theme={theme}
-                      index={index}
-                      onResolve={() => resolveEntry(entry.id)}
-                      onDelete={() => deleteEntry(entry.id)}
-                    />
-                  ))
-                )}
-              </div>
-
-              {/* Resolved entries */}
-              {resolvedEntries.length > 0 && (
-                <div className="space-y-2">
-                  <p
-                    className={`${theme.font.chat} text-[10px] tracking-wider mb-3`}
-                    style={{ color: theme.text.muted }}
-                  >
-                    RESOLVED
-                  </p>
-                  {resolvedEntries.slice(0, 5).map((entry, index) => (
-                    <LedgerItem
-                      key={entry.id}
-                      entry={entry}
-                      theme={theme}
-                      index={index}
-                      onDelete={() => deleteEntry(entry.id)}
-                      isResolved
-                    />
-                  ))}
-                </div>
               )}
             </>
           )}
         </div>
 
-        {/* Add new entry */}
+        {/* Add new task */}
         <div
           className="p-4 border-t"
           style={{ borderColor: `${theme.accent}20` }}
@@ -177,7 +189,7 @@ export function ActiveLedger({ personaId, isOpen, onClose }) {
                   type="text"
                   value={newItem}
                   onChange={(e) => setNewItem(e.target.value)}
-                  placeholder="Enter item..."
+                  placeholder="Enter task..."
                   className={`
                     w-full p-2 rounded text-sm ${theme.font.chat}
                     outline-none
@@ -189,6 +201,28 @@ export function ActiveLedger({ personaId, isOpen, onClose }) {
                   }}
                   autoFocus
                 />
+
+                {/* Priority selector */}
+                <div className="flex gap-1">
+                  {['high', 'medium', 'low'].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setNewPriority(p)}
+                      className={`
+                        flex-1 py-1 rounded text-[10px] font-mono tracking-wider
+                        transition-all
+                      `}
+                      style={{
+                        backgroundColor: newPriority === p ? PRIORITY_CONFIG[p].color : `${theme.text.muted}15`,
+                        color: newPriority === p ? '#fff' : theme.text.muted,
+                      }}
+                    >
+                      {PRIORITY_CONFIG[p].label}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -208,6 +242,7 @@ export function ActiveLedger({ personaId, isOpen, onClose }) {
                     onClick={() => {
                       setIsAdding(false)
                       setNewItem('')
+                      setNewPriority('medium')
                     }}
                     className={`
                       px-3 p-2 rounded text-xs ${theme.font.chat}
@@ -238,7 +273,7 @@ export function ActiveLedger({ personaId, isOpen, onClose }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
               >
-                + ADD ITEM
+                + ADD TASK
               </motion.button>
             )}
           </AnimatePresence>
@@ -248,83 +283,113 @@ export function ActiveLedger({ personaId, isOpen, onClose }) {
   )
 }
 
-function LedgerItem({ entry, theme, index, onResolve, onDelete, isResolved }) {
-  const [showActions, setShowActions] = useState(false)
+function PrioritySection({ label, color, tasks, theme, onComplete, onUncomplete, onDelete }) {
+  if (tasks.length === 0) return null
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center gap-2 mb-2">
+        <div
+          className="w-2 h-2 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+        <p
+          className={`${theme.font.chat} text-[10px] tracking-wider`}
+          style={{ color: theme.text.muted }}
+        >
+          {label}
+        </p>
+        <span
+          className={`${theme.font.chat} text-[10px]`}
+          style={{ color: theme.text.muted }}
+        >
+          ({tasks.filter(t => t.status === 'pending').length})
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        {tasks.map((entry, index) => (
+          <TaskItem
+            key={entry.id}
+            entry={entry}
+            theme={theme}
+            index={index}
+            onComplete={() => onComplete(entry.id)}
+            onUncomplete={() => onUncomplete(entry.id)}
+            onDelete={() => onDelete(entry.id)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TaskItem({ entry, theme, index, onComplete, onUncomplete, onDelete }) {
+  const isCompleted = entry.status === 'resolved'
+  const [showDelete, setShowDelete] = useState(false)
 
   return (
     <motion.div
-      className="group relative p-3 rounded border"
+      className="group relative flex items-start gap-2.5 p-2.5 rounded border"
       style={{
         backgroundColor: `${theme.background}80`,
         borderColor: `${theme.accent}10`,
-        opacity: isResolved ? 0.6 : 1,
+        opacity: isCompleted ? 0.5 : 1,
       }}
       initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: isResolved ? 0.6 : 1, x: 0 }}
-      transition={{ delay: index * 0.05 }}
-      onClick={() => setShowActions(!showActions)}
+      animate={{ opacity: isCompleted ? 0.5 : 1, x: 0 }}
+      transition={{ delay: index * 0.03 }}
+      onClick={() => setShowDelete(!showDelete)}
     >
+      {/* Checkbox */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          isCompleted ? onUncomplete() : onComplete()
+        }}
+        className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-sm border flex items-center justify-center transition-colors"
+        style={{
+          borderColor: isCompleted ? '#22C55E' : `${theme.text.muted}50`,
+          backgroundColor: isCompleted ? '#22C55E' : 'transparent',
+          cursor: 'pointer',
+        }}
+      >
+        {isCompleted && (
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        )}
+      </button>
+
+      {/* Description */}
       <p
-        className={`${theme.font.chat} text-sm pr-8 ${isResolved ? 'line-through' : ''}`}
-        style={{ color: theme.text.primary }}
+        className={`${theme.font.chat} text-sm flex-1 ${isCompleted ? 'line-through' : ''}`}
+        style={{ color: isCompleted ? theme.text.muted : theme.text.primary }}
       >
         {entry.description}
       </p>
 
-      {/* Actions */}
+      {/* Delete button (shown on click) */}
       <AnimatePresence>
-        {showActions && (
-          <motion.div
-            className="flex gap-2 mt-2"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+        {showDelete && (
+          <motion.button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            className="flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors"
+            style={{
+              backgroundColor: '#EF444420',
+              color: '#EF4444',
+            }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
           >
-            {!isResolved && onResolve && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onResolve()
-                }}
-                className={`
-                  px-2 py-1 rounded text-[10px] ${theme.font.chat}
-                  transition-colors
-                `}
-                style={{
-                  backgroundColor: '#22C55E20',
-                  color: '#22C55E',
-                }}
-              >
-                RESOLVE
-              </button>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete()
-              }}
-              className={`
-                px-2 py-1 rounded text-[10px] ${theme.font.chat}
-                transition-colors
-              `}
-              style={{
-                backgroundColor: '#EF444420',
-                color: '#EF4444',
-              }}
-            >
-              DELETE
-            </button>
-          </motion.div>
+            DEL
+          </motion.button>
         )}
       </AnimatePresence>
-
-      {/* Status indicator */}
-      <div
-        className="absolute top-3 right-3 w-2 h-2 rounded-full"
-        style={{
-          backgroundColor: isResolved ? '#22C55E' : theme.accent,
-        }}
-      />
     </motion.div>
   )
 }

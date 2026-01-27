@@ -1,18 +1,35 @@
--- PROXY Database Schema v2 (Simplified - No Auth)
+-- PROXY Database Schema v3 (Task Priority + AI Integration)
 -- Run this in your Supabase SQL Editor
 --
--- This version removes Supabase Auth dependency.
--- Users are identified by username only (for demo purposes).
+-- Changes from v2:
+-- - Added `priority` column to ledger_entries (high/medium/low)
+-- - Added `completed_at` column to ledger_entries (for 24h auto-cleanup)
+-- - Updated persona_id CHECK to support p1-p10
 
 -- ========================================
--- STEP 1: Drop old objects if they exist
+-- STEP 1: Drop ALL existing objects
 -- ========================================
 
--- Drop old trigger (if exists)
+-- Drop old trigger (if exists from v1)
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user();
 
--- Drop old RLS policies
+-- Drop v2 triggers
+drop trigger if exists update_profiles_updated_at on public.profiles;
+drop trigger if exists update_ledger_entries_updated_at on public.ledger_entries;
+
+-- Drop v2 RLS policies
+drop policy if exists "Allow read profiles" on public.profiles;
+drop policy if exists "Allow insert profiles" on public.profiles;
+drop policy if exists "Allow update profiles" on public.profiles;
+drop policy if exists "Allow read messages" on public.messages;
+drop policy if exists "Allow insert messages" on public.messages;
+drop policy if exists "Allow read ledger" on public.ledger_entries;
+drop policy if exists "Allow insert ledger" on public.ledger_entries;
+drop policy if exists "Allow update ledger" on public.ledger_entries;
+drop policy if exists "Allow delete ledger" on public.ledger_entries;
+
+-- Drop v1 RLS policies
 drop policy if exists "Users can view own profile" on public.profiles;
 drop policy if exists "Users can update own profile" on public.profiles;
 drop policy if exists "Users can view own messages" on public.messages;
@@ -22,16 +39,18 @@ drop policy if exists "Users can insert own ledger entries" on public.ledger_ent
 drop policy if exists "Users can update own ledger entries" on public.ledger_entries;
 drop policy if exists "Users can delete own ledger entries" on public.ledger_entries;
 
--- Drop old tables
+-- Drop tables (order matters for foreign keys)
 drop table if exists public.ledger_entries;
 drop table if exists public.messages;
 drop table if exists public.profiles;
 
+-- Drop helper function
+drop function if exists public.update_updated_at_column();
+
 -- ========================================
--- STEP 2: Create new tables
+-- STEP 2: Create tables
 -- ========================================
 
--- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
 -- Profiles table (standalone - no auth dependency)
@@ -54,7 +73,7 @@ create table public.messages (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Ledger Entries table
+-- Ledger Entries table (Task List with Priority)
 create table public.ledger_entries (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references public.profiles(id) on delete cascade not null,
@@ -84,58 +103,40 @@ create index ledger_entries_completed_at_idx on public.ledger_entries(completed_
 -- STEP 4: Enable RLS with open policies (demo mode)
 -- ========================================
 
--- For a demo with ~10 users, we'll use simplified RLS
--- In production, you'd want proper authentication
-
 alter table public.profiles enable row level security;
 alter table public.messages enable row level security;
 alter table public.ledger_entries enable row level security;
 
--- Allow all operations (demo mode - no auth)
--- Profiles: Anyone can read and create, only owner can update
+-- Profiles
 create policy "Allow read profiles"
-  on public.profiles for select
-  using (true);
-
+  on public.profiles for select using (true);
 create policy "Allow insert profiles"
-  on public.profiles for insert
-  with check (true);
-
+  on public.profiles for insert with check (true);
 create policy "Allow update profiles"
-  on public.profiles for update
-  using (true);
+  on public.profiles for update using (true);
 
--- Messages: Allow all operations
+-- Messages
 create policy "Allow read messages"
-  on public.messages for select
-  using (true);
-
+  on public.messages for select using (true);
 create policy "Allow insert messages"
-  on public.messages for insert
-  with check (true);
+  on public.messages for insert with check (true);
+create policy "Allow delete messages"
+  on public.messages for delete using (true);
 
--- Ledger: Allow all operations
+-- Ledger
 create policy "Allow read ledger"
-  on public.ledger_entries for select
-  using (true);
-
+  on public.ledger_entries for select using (true);
 create policy "Allow insert ledger"
-  on public.ledger_entries for insert
-  with check (true);
-
+  on public.ledger_entries for insert with check (true);
 create policy "Allow update ledger"
-  on public.ledger_entries for update
-  using (true);
-
+  on public.ledger_entries for update using (true);
 create policy "Allow delete ledger"
-  on public.ledger_entries for delete
-  using (true);
+  on public.ledger_entries for delete using (true);
 
 -- ========================================
--- STEP 5: Create helper functions
+-- STEP 5: Helper functions & triggers
 -- ========================================
 
--- Function to update updated_at timestamp
 create or replace function public.update_updated_at_column()
 returns trigger as $$
 begin
@@ -144,7 +145,6 @@ begin
 end;
 $$ language plpgsql;
 
--- Triggers for updated_at
 create trigger update_profiles_updated_at
   before update on public.profiles
   for each row execute procedure public.update_updated_at_column();

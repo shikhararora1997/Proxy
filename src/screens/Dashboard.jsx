@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useProxy } from '../context/ProxyContext'
 import { useAuth } from '../context/AuthContext'
-import { THEMES, GHOST_RESPONSES, WELCOME_MESSAGES } from '../config/themes'
+import { THEMES, WELCOME_MESSAGES } from '../config/themes'
 import { PERSONA_NAMES } from '../config/personas'
 import { useMessages } from '../hooks/useMessages'
+import { useLedger } from '../hooks/useLedger'
+import { getAIResponse, isAIConfigured } from '../lib/ai'
 import { ChatFeed } from '../components/chat/ChatFeed'
 import { ChatInput } from '../components/chat/ChatInput'
 import { ActiveLedger, LedgerToggle } from '../components/ledger/ActiveLedger'
@@ -31,9 +33,13 @@ export function Dashboard() {
     isEmpty,
   } = useMessages()
 
+  const ledger = useLedger()
+  const { entries: ledgerEntries, addEntry, completeTaskByQuery } = ledger
+
   const [isTyping, setIsTyping] = useState(false)
-  const [ledgerOpen, setLedgerOpen] = useState(false)
+  const [ledgerOpen, setLedgerOpen] = useState(window.innerWidth >= 768)
   const welcomeSentRef = useRef(false)
+  const aiEnabled = isAIConfigured()
 
   // Send welcome message on first visit
   useEffect(() => {
@@ -56,17 +62,61 @@ export function Dashboard() {
     }
   }, [messagesLoading, isEmpty, personaId, addProxyMessage])
 
-  // Handle user message and ghost response
+  // Handle user message and AI response
   const handleSend = useCallback(async (text) => {
     await addUserMessage(text)
-
-    // Simulate typing delay then ghost response
     setIsTyping(true)
-    setTimeout(async () => {
-      await addProxyMessage(GHOST_RESPONSES[personaId])
+
+    try {
+      const response = await getAIResponse(
+        personaId,
+        text,
+        messages,
+        ledgerEntries
+      )
+
+      // Display the conversational reply
+      await addProxyMessage(response.message)
+
+      // Handle task actions (array of add/complete)
+      if (response.task_actions && response.task_actions.length > 0) {
+        for (const action of response.task_actions) {
+          const { type, description, priority, match_query } = action
+          if (type === 'add' && description) {
+            await addEntry(description, null, null, priority || 'medium')
+          } else if (type === 'complete' && match_query) {
+            await completeTaskByQuery(match_query)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get AI response:', error)
+      await addProxyMessage("I seem to be having trouble responding. Please try again.")
+    } finally {
       setIsTyping(false)
-    }, 1500)
-  }, [addUserMessage, addProxyMessage, personaId])
+    }
+  }, [addUserMessage, addProxyMessage, personaId, messages, ledgerEntries, addEntry, completeTaskByQuery])
+
+  // Handle assess ledger (no user input, sends special token)
+  const handleAssess = useCallback(async () => {
+    if (isTyping) return
+    setIsTyping(true)
+
+    try {
+      const response = await getAIResponse(
+        personaId,
+        '[ASSESS_LEDGER]',
+        messages,
+        ledgerEntries
+      )
+      await addProxyMessage(response.message)
+    } catch (error) {
+      console.error('Failed to assess ledger:', error)
+      await addProxyMessage("I seem to be having trouble assessing your ledger. Try again.")
+    } finally {
+      setIsTyping(false)
+    }
+  }, [isTyping, addProxyMessage, personaId, messages, ledgerEntries])
 
   // Handle logout
   const handleLogout = () => {
@@ -141,7 +191,7 @@ export function Dashboard() {
                   className={`${theme.font.chat} text-xs`}
                   style={{ color: theme.text.muted }}
                 >
-                  {isOnline ? 'Connected' : 'Offline Mode'}
+                  {aiEnabled ? '● AI Active' : isOnline ? 'Connected' : 'Offline Mode'}
                 </p>
               </div>
             </div>
@@ -183,6 +233,7 @@ export function Dashboard() {
           <ChatInput
             personaId={personaId}
             onSend={handleSend}
+            onAssess={handleAssess}
             disabled={isTyping}
           />
         </div>
@@ -193,6 +244,7 @@ export function Dashboard() {
             personaId={personaId}
             isOpen={ledgerOpen}
             onClose={() => setLedgerOpen(false)}
+            ledger={ledger}
           />
         </div>
 
@@ -202,6 +254,7 @@ export function Dashboard() {
             personaId={personaId}
             isOpen={ledgerOpen}
             onClose={() => setLedgerOpen(false)}
+            ledger={ledger}
           />
         </div>
 

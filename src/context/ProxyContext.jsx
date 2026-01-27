@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useAuth } from './AuthContext'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { ALL_PERSONA_IDS } from '../config/personas'
 
 const ProxyContext = createContext(null)
 
@@ -67,6 +68,30 @@ export function ProxyProvider({ children }) {
     setStage(STAGES.DASHBOARD)
   }
 
+  // Track rejected personas so we cycle through all before repeating
+  const rejectedRef = useRef(new Set())
+
+  const rerollPersona = useCallback(async () => {
+    const current = profile?.persona_id || personaId
+    rejectedRef.current.add(current)
+
+    // If all rejected, reset the set (loop endlessly)
+    if (rejectedRef.current.size >= ALL_PERSONA_IDS.length) {
+      rejectedRef.current = new Set([current])
+    }
+
+    const available = ALL_PERSONA_IDS.filter(id => !rejectedRef.current.has(id))
+    const next = available[Math.floor(Math.random() * available.length)]
+
+    setPersonaId(next)
+    if (isSupabaseConfigured() && profile) {
+      await updateProfile({ persona_id: next })
+    }
+
+    // Go back to revelation to show the new persona dramatically
+    setStage(STAGES.REVELATION)
+  }, [personaId, profile, setPersonaId, updateProfile, setStage])
+
   // Get effective username/persona (prefer profile if authenticated)
   const effectiveUsername = profile?.username || username
   const effectivePersonaId = profile?.persona_id || personaId
@@ -90,6 +115,7 @@ export function ProxyProvider({ children }) {
     // Helpers
     addAnswer: (answer) => setAnswers(prev => [...prev, answer]),
     acceptProxy,
+    rerollPersona,
     resetFlow: () => {
       // Clear localStorage directly to ensure clean state
       localStorage.removeItem('proxy_username')

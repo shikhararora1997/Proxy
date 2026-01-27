@@ -5,7 +5,7 @@ import { THEMES } from '../../config/themes'
 /**
  * Chat input component styled per persona theme
  */
-export function ChatInput({ personaId, onSend, disabled = false }) {
+export function ChatInput({ personaId, onSend, onAssess, disabled = false }) {
   const theme = THEMES[personaId]
   const [value, setValue] = useState('')
   const inputRef = useRef(null)
@@ -27,6 +27,28 @@ export function ChatInput({ personaId, onSend, disabled = false }) {
 
   return (
     <form onSubmit={handleSubmit} className="p-4 border-t" style={{ borderColor: `${theme.accent}20` }}>
+      {/* Assess Ledger button */}
+      {onAssess && (
+        <motion.button
+          type="button"
+          onClick={onAssess}
+          disabled={disabled}
+          className={`
+            w-full mb-2 py-2 rounded-md text-xs tracking-wider ${theme.font.chat}
+            transition-colors disabled:opacity-30 disabled:cursor-not-allowed
+          `}
+          style={{
+            backgroundColor: `${theme.accent}15`,
+            color: theme.accent,
+            border: `1px solid ${theme.accent}25`,
+          }}
+          whileHover={!disabled ? { backgroundColor: `${theme.accent}25` } : {}}
+          whileTap={!disabled ? { scale: 0.98 } : {}}
+        >
+          ASSESS LEDGER
+        </motion.button>
+      )}
+
       <div
         className="flex items-center gap-3 p-2 rounded-lg"
         style={{ backgroundColor: theme.surface }}
@@ -88,9 +110,15 @@ function SendIcon() {
 function getPlaceholder(personaId) {
   switch (personaId) {
     case 'p1': return 'Type your request, sir...'
-    case 'p2': return 'What\'s the move?'
-    case 'p3': return 'Speak your truth...'
-    case 'p4': return 'Say something fun!'
+    case 'p2': return 'State the facts...'
+    case 'p3': return 'Report, soldier...'
+    case 'p4': return 'Secure channel open...'
+    case 'p5': return 'Speak your truth...'
+    case 'p6': return 'State your purpose...'
+    case 'p7': return 'Amuse me...'
+    case 'p8': return 'Make it quick...'
+    case 'p9': return 'Talk to me, Jarvis...'
+    case 'p10': return 'Speak, you may...'
     default: return 'Type a message...'
   }
 }

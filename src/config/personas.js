@@ -1,58 +1,105 @@
 /**
  * Persona Definitions
  *
- * Names are intentionally hidden here - users only see IDs (p1, p2, p3, p4)
- * until the final reveal in Phase 1.
- *
- * The actual names map to:
- * - p1: Alfred (The Custodian)
- * - p2: Piccolo (The Tactician)
- * - p3: Gandalf (The Sage)
- * - p4: Deadpool (The Disruptor)
+ * 10 personas (p1-p10), revealed after the diagnostic.
  */
 
 export const PERSONAS = {
   p1: {
     id: 'p1',
     colors: {
-      primary: '#0F172A',  // Navy
-      accent: '#D4AF37',   // Gold
+      primary: '#0F172A',   // Deep Navy
+      accent: '#D4AF37',    // Gold
     },
-    vibe: 'Luxury Watch / Private Bank / Stoic',
+    vibe: 'Luxury Watch / Private Bank / Extremely Sarcastic',
   },
   p2: {
     id: 'p2',
     colors: {
-      primary: '#2E1065',  // Deep Purple
-      accent: '#000000',   // Black
+      primary: '#1A1A1A',   // Charcoal/Ink
+      accent: '#00FFCC',    // Analytical Cyan
     },
-    vibe: 'Brutalist / High-Performance / Aggressive',
+    vibe: 'Cold Logic / High-Forensic / Analytical',
   },
   p3: {
     id: 'p3',
     colors: {
-      primary: '#064E3B',  // Emerald
-      accent: '#64748B',   // Slate
+      primary: '#000000',   // Pure Black
+      accent: '#4B5563',    // Slate / Armor Grey
     },
-    vibe: 'Natural / Ethereal / Wise',
+    vibe: 'Tactical / Prepared / Gritty',
   },
   p4: {
     id: 'p4',
     colors: {
-      primary: '#991B1B',  // Crimson
-      accent: '#18181B',   // Charcoal
+      primary: '#080808',   // Pitch Black
+      accent: '#B91C1C',    // Blood Red
     },
-    vibe: 'Cyberpunk / Neon / Chaotic',
+    vibe: 'Stealth / Precise / Lethal',
+  },
+  p5: {
+    id: 'p5',
+    colors: {
+      primary: '#064E3B',   // Deep Emerald
+      accent: '#D1D5DB',    // Soft Slate/Silver
+    },
+    vibe: 'Natural / Ethereal / Wise',
+  },
+  p6: {
+    id: 'p6',
+    colors: {
+      primary: '#2E1065',   // Deep Purple
+      accent: '#FDE047',    // Titan Gold
+    },
+    vibe: 'Brutalist / Final / Disciplined',
+  },
+  p7: {
+    id: 'p7',
+    colors: {
+      primary: '#064E3B',   // Asgardian Green
+      accent: '#D4AF37',    // Gold
+    },
+    vibe: 'Unhinged / Neon / Disruptive',
+  },
+  p8: {
+    id: 'p8',
+    colors: {
+      primary: '#FFFFFF',   // Pearl White / Marble
+      accent: '#B19470',    // Bronze / Champagne
+    },
+    vibe: 'Regal / Architectural / Commanding',
+  },
+  p9: {
+    id: 'p9',
+    colors: {
+      primary: '#7F1D1D',   // Stark Red
+      accent: '#38B2AC',    // Arc Reactor Blue
+    },
+    vibe: 'High-Tech / High-Performance / Innovative',
+  },
+  p10: {
+    id: 'p10',
+    colors: {
+      primary: '#14532D',   // Forest Green
+      accent: '#BEF264',    // Lightsaber Green
+    },
+    vibe: 'Minimalist / Zen / Ancient',
   },
 }
 
 // Hidden until revelation
 export const PERSONA_NAMES = {
   p1: 'Alfred',
-  p2: 'Piccolo',
-  p3: 'Gandalf',
-  p4: 'Deadpool',
+  p2: 'Sherlock',
+  p3: 'Batman',
+  p4: 'Black Widow',
+  p5: 'Gandalf',
+  p6: 'Thanos',
+  p7: 'Loki',
+  p8: 'Jessica Pearson',
+  p9: 'Tony Stark',
+  p10: 'Yoda',
 }
 
-// Tie-breaker priority (higher index = lower priority)
-export const PERSONA_PRIORITY = ['p1', 'p2', 'p3', 'p4']
+// All persona IDs
+export const ALL_PERSONA_IDS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10']

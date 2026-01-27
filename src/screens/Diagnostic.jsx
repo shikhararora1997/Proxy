@@ -21,7 +21,10 @@ export function Diagnostic() {
     if (isGlitching || selectedOption) return
 
     setSelectedOption(option.id)
-    setGlitchPersona(option.persona)
+    // Extract the primary persona (highest weight) for glitch color
+    const primaryPersona = Object.entries(option.weights)
+      .sort((a, b) => b[1] - a[1])[0][0]
+    setGlitchPersona(primaryPersona)
     setIsGlitching(true)
   }, [isGlitching, selectedOption])
 
@@ -33,7 +36,7 @@ export function Diagnostic() {
     const newAnswer = {
       questionId: currentQuestion.id,
       optionId: option.id,
-      personaId: option.persona,
+      weights: option.weights,
     }
     addAnswer(newAnswer)
 

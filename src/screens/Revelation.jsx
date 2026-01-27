@@ -173,9 +173,15 @@ export function Revelation() {
                 transition={{ delay: 1, duration: 0.5 }}
               >
                 {personaId === 'p1' && 'THE CUSTODIAN'}
-                {personaId === 'p2' && 'THE TACTICIAN'}
-                {personaId === 'p3' && 'THE SAGE'}
-                {personaId === 'p4' && 'THE DISRUPTOR'}
+                {personaId === 'p2' && 'THE ARCHITECT'}
+                {personaId === 'p3' && 'THE SHADOW'}
+                {personaId === 'p4' && 'THE SPY'}
+                {personaId === 'p5' && 'THE SAGE'}
+                {personaId === 'p6' && 'THE INEVITABLE'}
+                {personaId === 'p7' && 'THE DECEIVER'}
+                {personaId === 'p8' && 'THE AUTHORITY'}
+                {personaId === 'p9' && 'THE INVENTOR'}
+                {personaId === 'p10' && 'THE GRANDMASTER'}
               </motion.p>
             </motion.div>
           </motion.div>

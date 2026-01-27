@@ -12,7 +12,7 @@ import { LensFocusPage } from '../components/transitions/LensFocus'
  * Features staggered text reveal like a typewriter/printing effect.
  */
 export function Letter() {
-  const { username, personaId, resetFlow, acceptProxy } = useProxy()
+  const { username, personaId, resetFlow, acceptProxy, rerollPersona } = useProxy()
   const [showButton, setShowButton] = useState(false)
 
   const persona = PERSONAS[personaId]
@@ -146,15 +146,15 @@ export function Letter() {
               ACCEPT MY PROXY
             </motion.button>
 
-            {/* Restart option */}
+            {/* Reroll persona */}
             <motion.button
-              onClick={resetFlow}
+              onClick={rerollPersona}
               className="w-full mt-4 p-3 text-white/30 font-mono text-xs tracking-wider hover:text-white/50 transition-colors"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
-              RESTART DIAGNOSTIC
+              NOT FOR ME — SHOW ANOTHER
             </motion.button>
           </motion.div>
 

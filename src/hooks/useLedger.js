@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
 const LOCAL_STORAGE_KEY = 'proxy_ledger_entries'
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
 
 /**
- * Hook for managing ledger entries with Supabase
+ * Hook for managing task ledger entries with Supabase
  * Falls back to localStorage if Supabase is not configured
  */
 export function useLedger() {
@@ -16,7 +17,6 @@ export function useLedger() {
   // Fetch entries
   const fetchEntries = useCallback(async () => {
     if (!isSupabaseConfigured() || !profile) {
-      // Fallback to localStorage
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (stored) {
         try {
@@ -52,19 +52,28 @@ export function useLedger() {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data))
   }, [])
 
-  // Add entry
-  const addEntry = useCallback(async (description, category = null, amount = null) => {
+  // Filter out completed tasks older than 24h
+  const visibleEntries = useMemo(() => {
+    return entries.filter(e => {
+      if (e.status !== 'resolved' || !e.completed_at) return true
+      return (Date.now() - new Date(e.completed_at).getTime()) < TWENTY_FOUR_HOURS
+    })
+  }, [entries])
+
+  // Add entry with priority
+  const addEntry = useCallback(async (description, category = null, amount = null, priority = 'medium') => {
     const newEntry = {
       id: crypto.randomUUID(),
       description,
       category,
       amount,
+      priority,
       status: 'pending',
+      completed_at: null,
       created_at: new Date().toISOString(),
       user_id: profile?.id,
     }
 
-    // Optimistic update
     const updated = [newEntry, ...entries]
     setEntries(updated)
 
@@ -80,6 +89,7 @@ export function useLedger() {
         description,
         category,
         amount,
+        priority,
         status: 'pending',
       })
       .select()
@@ -87,7 +97,7 @@ export function useLedger() {
 
     if (error) {
       console.error('Error adding entry:', error)
-      setEntries(entries) // Revert
+      setEntries(entries)
       return null
     }
 
@@ -95,9 +105,73 @@ export function useLedger() {
     return data
   }, [profile, entries, saveToLocal])
 
-  // Update entry status
+  // Complete a task (set resolved + completed_at timestamp)
+  const completeEntry = useCallback(async (id) => {
+    const now = new Date().toISOString()
+    const updated = entries.map(e =>
+      e.id === id ? { ...e, status: 'resolved', completed_at: now } : e
+    )
+    setEntries(updated)
+
+    if (!isSupabaseConfigured() || !profile) {
+      saveToLocal(updated)
+      return true
+    }
+
+    const { error } = await supabase
+      .from('ledger_entries')
+      .update({ status: 'resolved', completed_at: now })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error completing entry:', error)
+      setEntries(entries)
+      return false
+    }
+
+    return true
+  }, [profile, entries, saveToLocal])
+
+  // Uncomplete a task (revert to pending)
+  const uncompleteEntry = useCallback(async (id) => {
+    const updated = entries.map(e =>
+      e.id === id ? { ...e, status: 'pending', completed_at: null } : e
+    )
+    setEntries(updated)
+
+    if (!isSupabaseConfigured() || !profile) {
+      saveToLocal(updated)
+      return true
+    }
+
+    const { error } = await supabase
+      .from('ledger_entries')
+      .update({ status: 'pending', completed_at: null })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error uncompleting entry:', error)
+      setEntries(entries)
+      return false
+    }
+
+    return true
+  }, [profile, entries, saveToLocal])
+
+  // Complete a task by fuzzy matching query against pending descriptions
+  const completeTaskByQuery = useCallback(async (query) => {
+    const q = query.toLowerCase()
+    const match = entries.find(
+      e => e.status === 'pending' && e.description.toLowerCase().includes(q)
+    )
+    if (match) {
+      return completeEntry(match.id)
+    }
+    return false
+  }, [entries, completeEntry])
+
+  // Update entry status (legacy)
   const updateStatus = useCallback(async (id, status) => {
-    // Optimistic update
     const updated = entries.map(e => e.id === id ? { ...e, status } : e)
     setEntries(updated)
 
@@ -113,26 +187,23 @@ export function useLedger() {
 
     if (error) {
       console.error('Error updating entry:', error)
-      setEntries(entries) // Revert
+      setEntries(entries)
       return false
     }
 
     return true
   }, [profile, entries, saveToLocal])
 
-  // Resolve entry
   const resolveEntry = useCallback((id) => {
     return updateStatus(id, 'resolved')
   }, [updateStatus])
 
-  // Void entry
   const voidEntry = useCallback((id) => {
     return updateStatus(id, 'void')
   }, [updateStatus])
 
   // Delete entry
   const deleteEntry = useCallback(async (id) => {
-    // Optimistic update
     const updated = entries.filter(e => e.id !== id)
     setEntries(updated)
 
@@ -148,7 +219,7 @@ export function useLedger() {
 
     if (error) {
       console.error('Error deleting entry:', error)
-      setEntries(entries) // Revert
+      setEntries(entries)
       return false
     }
 
@@ -157,8 +228,12 @@ export function useLedger() {
 
   return {
     entries,
+    visibleEntries,
     loading,
     addEntry,
+    completeEntry,
+    uncompleteEntry,
+    completeTaskByQuery,
     resolveEntry,
     voidEntry,
     deleteEntry,

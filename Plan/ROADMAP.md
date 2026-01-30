@@ -101,27 +101,143 @@ VITE_SUPABASE_ANON_KEY=eyJhbGc...
 
 ---
 
-## Phase 5: Polish & Launch (PLANNED)
-**Goal:** Production readiness and public demo.
+## Phase 5: PWA & Notifications ✅ COMPLETE
+**Goal:** Mobile-first experience with push notifications.
+
+### PWA
+- [x] `manifest.json` with app metadata and icons
+- [x] Service worker for push notification handling
+- [x] App icons (192x192, 512x512, badge)
+- [x] Safe area insets for iOS notch/status bar
+- [x] Input zoom prevention (16px font-size)
+
+### Push Notifications
+- [x] VAPID key generation and configuration
+- [x] `push_subscriptions` table in Supabase
+- [x] Edge Function: `send-notifications/index.ts`
+- [x] Timezone-aware quiet hours (12am-7am)
+- [x] Persona-specific notification messages
+- [x] Cron job setup via cron-job.org (every 4 hours)
+- [x] Notification prompt after tutorial
+
+### Files
+```
+public/manifest.json
+public/sw.js
+public/icons/
+src/hooks/usePushNotifications.js
+src/components/ui/NotificationPrompt.jsx
+supabase/functions/send-notifications/index.ts
+supabase-schema-v5.sql
+```
+
+---
+
+## Phase 6: Authentication ✅ COMPLETE
+**Goal:** Secure user accounts with password protection.
+
+### Implementation
+- [x] Password fields in VaultEntrance (login + signup)
+- [x] SHA-256 hashing via Web Crypto API
+- [x] `password_hash` column in profiles table
+- [x] Password validation (min 4 chars, confirmation match)
+- [x] Error handling for wrong password / user not found
+
+### Files
+```
+src/context/AuthContext.jsx
+src/screens/VaultEntrance.jsx
+supabase-schema-v6.sql
+```
+
+---
+
+## Phase 7: 3-Day Reflection ✅ COMPLETE
+**Goal:** Periodic accountability review with AI-powered analysis.
+
+### Implementation
+- [x] Trigger: after 5pm + 3 days since last review
+- [x] `last_review_at` column in profiles table
+- [x] Dramatic intro animation with scanning effect
+- [x] AI-generated persona-voiced assessment
+- [x] Stats display (completed/pending/rate)
+- [x] Detailed report: Post-Mortem → Behavioral Patterns → Directive
+- [x] Purge completed tasks on exit
+
+### Files
+```
+src/screens/ReflectionAssessment.jsx
+src/context/ProxyContext.jsx (shouldTriggerReflection, completeReflection)
+src/config/prompts.js (buildReflectionPrompt)
+src/lib/ai.js (getReflectionAnalysis)
+src/hooks/useLedger.js (purgeCompleted)
+supabase-schema-v7.sql
+```
+
+---
+
+## Phase 8: Task Management Improvements ✅ COMPLETE
+**Goal:** Robust task CRUD with better AI integration.
+
+### Implementation
+- [x] Task update action (change priority, deadline, description)
+- [x] Improved fuzzy matching with scoring system
+- [x] Default deadline: 3 hours (was 3 days)
+- [x] datetime-local picker for manual task entry
+- [x] Structured assess ledger output
+- [x] Multi-line chat input with auto-expand
+- [x] Scroll on keyboard open (mobile)
+
+### Files
+```
+src/hooks/useLedger.js (updateTaskByQuery, scoring)
+src/components/ledger/ActiveLedger.jsx (datetime-local)
+src/components/chat/ChatInput.jsx (textarea, auto-expand)
+src/config/prompts.js (update action, structured assess)
+```
+
+---
+
+## Phase 9: Future Enhancements (PLANNED)
+**Goal:** Additional polish and features.
 
 ### Potential Features
-- [ ] Hosting on Vercel/Netlify (free tier)
-- [ ] PWA Support: Install as mobile app
 - [ ] Streaming AI responses (typewriter effect)
 - [ ] Voice input (Speech-to-text)
 - [ ] Settings screen (change persona, clear data)
 - [ ] Analytics (track user journeys)
 - [ ] Error boundaries and loading skeletons
 - [ ] Rate limiting for demo users
+- [ ] Data encryption (client-side)
+- [ ] Email verification
+
+### Known Bugs to Fix
+- [ ] Wrong task sometimes updated (fuzzy matching edge cases)
+- [ ] Completed tasks not always visible
+- [ ] Assess ledger structure needs refinement
 
 ---
 
-## Deployment Notes
+## Deployment
 
-### Current Setup
+### Production
+- **Hosting:** Vercel (https://proxy-ruby-rho.vercel.app)
+- **Database:** Supabase
+- **Edge Functions:** Supabase Functions
+- **Cron:** cron-job.org (notifications every 4h)
+
+### Development
 - **Dev Server:** `npm run dev` → http://localhost:5173
-- **Mobile Testing:** `npx vite --host` + Cloudflare tunnel
-- **Database:** Supabase project
+- **Mobile Testing:** `cloudflared tunnel --url http://localhost:5173`
+- **Deploy:** `npx vercel --prod`
+
+### Environment Variables (Vercel)
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+VITE_OPENAI_API_KEY
+VITE_VAPID_PUBLIC_KEY
+```
 
 ### Repository
 https://github.com/shikhararora1997/Proxy

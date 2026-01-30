@@ -195,3 +195,94 @@ Since the LLM brain is not yet connected, we simulate the persona's presence wit
 - **Format:** Array of objects `{ sender: 'user' | 'proxy', text: string, timestamp: number }`.
 - **Behavior:** On page load, hydrate the chat window with the history. If empty, trigger the Persona's "Welcome Back" message.
 
+---
+
+# Phase 3: Authentication & Security
+
+## 1. Password Authentication
+- **Flow:** VaultEntrance asks "Are you a new visitor?" → Yes/No
+- **New Users:** Enter username + password + confirm password
+- **Existing Users:** Enter username + password
+- **Hashing:** SHA-256 via Web Crypto API (client-side)
+- **Storage:** `password_hash` column in `profiles` table
+
+## 2. Session Management
+- **Login:** Stores `proxy_user_id` in localStorage
+- **Logout:** Clears localStorage and resets flow
+- **Auto-login:** On mount, checks for existing user ID and fetches profile
+
+---
+
+# Phase 4: PWA & Push Notifications
+
+## 1. Progressive Web App (PWA)
+- **Manifest:** `public/manifest.json` with app name, icons, theme colors
+- **Service Worker:** `public/sw.js` handles push events and caching
+- **Icons:** 192x192 and 512x512 PNG icons for home screen
+- **Install:** Users can "Add to Home Screen" on iOS/Android
+
+## 2. Push Notifications
+- **VAPID Keys:** Public/private key pair for web push authentication
+- **Subscription Storage:** `push_subscriptions` table in Supabase
+- **Edge Function:** `supabase/functions/send-notifications/index.ts`
+- **Trigger:** Cron job every 4 hours via cron-job.org
+- **Quiet Hours:** No notifications between 12am-7am local time
+- **Persona Messages:** Each persona has unique notification voice
+
+### Persona Notification Examples
+| Persona | Sample Message |
+|---------|----------------|
+| Alfred | "Sir, 3 urgent matters await your attention." |
+| Batman | "3 tasks pending. Gotham doesn't wait." |
+| Yoda | "3 tasks, you have. Complete them, you will." |
+| Tony Stark | "3 code reds in the queue. Suit up." |
+
+---
+
+# Phase 5: 3-Day Reflection System
+
+## 1. Trigger Conditions
+- **Time:** After 5pm local time
+- **Interval:** 3+ days since last review (or 3+ days since account creation)
+- **Check:** Runs on Dashboard mount
+
+## 2. Reflection Flow
+1. **Intro Phase:** Dramatic "THREE-DAY REFLECTION" animation with scanning effect
+2. **Analysis Phase:** AI generates comprehensive persona-voiced assessment
+3. **Report Phase:** Displays stats + detailed analysis
+4. **Exit Phase:** Purges completed tasks, returns to clean dashboard
+
+## 3. AI Analysis Content
+- **The Post-Mortem:** Detailed breakdown of successes and failures
+- **Behavioral Patterns:** Identifies if user prioritizes easy tasks over high-value ones
+- **The Directive:** Personalized marching orders for next 3-day cycle
+
+## 4. Ledger Cleanup
+- **On Exit:** All completed tasks permanently deleted from database
+- **Result:** User returns to fresh ledger with only pending tasks
+
+---
+
+# Phase 6: Task Management Improvements
+
+## 1. Task Actions
+- **Add:** Create new task with description, priority, due date
+- **Complete:** Mark task as done (strikethrough, sorted to bottom)
+- **Update:** Modify existing task priority, deadline, or description
+- **Uncomplete:** Revert completed task to pending
+
+## 2. AI Task Detection
+- **JSON Response Format:** `{ "message": "...", "task_actions": [...] }`
+- **Action Types:** `add`, `complete`, `update`
+- **Multi-task:** Handles multiple tasks in single message
+- **Fuzzy Matching:** Scoring system to find correct task for complete/update
+
+## 3. Default Deadlines
+- **AI-assigned:** 3 hours from current time when not specified
+- **Manual entry:** datetime-local picker for precise time selection
+
+## 4. Assess Ledger
+- **Trigger:** "ASSESS LEDGER" button in chat input
+- **Format:** Structured output with PRIORITY SCAN → ACTIONABLE INTEL → VERDICT
+- **Voice:** Full persona character throughout assessment
+

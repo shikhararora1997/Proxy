@@ -1,71 +1,51 @@
 # PROXY Product Roadmap
 
-## Tech Stack
-- **Frontend:** Vite + React 18
-- **Styling:** Tailwind CSS 4.0
-- **Animations:** Framer Motion
-- **Database:** Supabase (PostgreSQL)
-- **AI:** OpenAI GPT-4o-mini (structured JSON responses)
-- **State:** React Context + localStorage fallback
-- **Fonts:** JetBrains Mono, Playfair Display, Space Grotesk, Bangers
+## Phase 1: The Discovery (Current Sprint)
+**Goal:** Establish the emotional hook. Identify the user's persona and deliver a "magic moment" of connection.
+
+### 1. Foundation
+- [x] Initialize Next.js project with Tailwind CSS.
+- [x] Configure `framer-motion` and custom fonts.
+- [x] Set up `localStorage` utility for persistence.
+
+### 2. Core Logic (The Brain)
+- [x] Implement `PersonaEngine`: Scoring algorithm for the 4 personas.
+- [x] Build key-value mapping for Questions -> Persona Points.
+- [x] Create content JSON for Questions and Letters.
+
+### 3. User Interface (The Body)
+- [x] **Stealth Entry:** Build the "Terminal-style" input.
+- [x] **Diagnostic View:** Create the question runner component.
+    - [x] Implement the "Glitch" color-flash effect on answer selection.
+- [x] **Revelation:** Build the "Shatter" transition effect.
+- [x] **The Letter:** Styling the rich text based on the winning Persona.
+
+### 4. Polish & Ship
+- [x] Mobile responsiveness audit.
+- [x] Animation timing tweaks (ensure it feels cinematic, not sluggish).
+- [x] Final User Acceptance Testing (UAT) with "Co-Founder".
 
 ---
 
-## Phase 1: The Discovery ✅ COMPLETE
-**Goal:** Cinematic onboarding that diagnoses the user's persona from 10 possible characters.
+## Phase 2: The Interrogative Ledger (Current Sprint)
+**Goal:** Build a Chat-First Ledger Maintainer interface that is fully skinned based on the user's assigned persona.
 
-### Core
-- [x] Vite + React + Tailwind + Framer Motion foundation
-- [x] 10 personas (Alfred, Sherlock, Batman, Black Widow, Gandalf, Thanos, Loki, Jessica Pearson, Tony Stark, Yoda)
-- [x] 8 weighted diagnostic questions (each option distributes points across multiple personas)
-- [x] Weighted scoring with random tie-breaking
-- [x] Persona re-selection: "Not for me — show another" cycles through personas endlessly without revealing the full list
+### 1. Dashboard Architecture
+- [ ] **Layout:** Implement the layout shell (Sidebar/Drawer + Chat Area).
+- [ ] **Routing:** Ensure generic route protection (redirect to Phase 1 if no persona found).
+- [ ] **Ghost Ledger:** Build the static visual component for the sidebar/drawer.
 
-### Screens
-- [x] **Stealth Entry** — Terminal-style username input with blinking cursor
-- [x] **Diagnostic** — 8 questions with RGB glitch effect on selection
-- [x] **Revelation** — Shatter effect transition, persona name reveal
-- [x] **Letter** — Personalized typewriter letter from each persona + accept/reroll
+### 2. Persona Skinning
+- [ ] **Theme Context:** Expand the design system to support 4 distinct themes (Fonts, Colors, Border Radii).
+- [ ] **Alfred Theme:** Navy/Gold, Minimalist bubbles.
+- [ ] **Piccolo Theme:** Purple/Black, Brutalist blocks.
+- [ ] **Gandalf Theme:** Green/Slate, Texture/Parchment feel.
+- [ ] **Deadpool Theme:** Red/Charcoal, Chaotic/Neon feel.
 
-### Files
-```
-src/screens/StealthEntry.jsx, Diagnostic.jsx, Revelation.jsx, Letter.jsx
-src/components/ui/CursorBlink.jsx
-src/components/effects/GlitchEffect.jsx, ShatterEffect.jsx
-src/components/transitions/LensFocus.jsx
-src/config/questions.js, personas.js, letters.js
-src/utils/scoring.js
-src/hooks/useLocalStorage.js
-src/context/ProxyContext.jsx
-```
-
----
-
-## Phase 2: The Interrogative Ledger ✅ COMPLETE
-**Goal:** Chat-first interface with persona-themed UI and task ledger sidebar.
-
-### Core
-- [x] Dashboard with chat feed + ledger sidebar
-- [x] 10 unique persona themes (colors, fonts, styles)
-- [x] Chat system with typing indicator, welcome messages
-- [x] Ledger sidebar (desktop) / drawer (mobile)
-- [x] Desktop ledger opens by default
-
-### Files
-```
-src/screens/Dashboard.jsx
-src/components/chat/ChatFeed.jsx, ChatInput.jsx
-src/components/ledger/ActiveLedger.jsx
-src/config/themes.js
-```
-
----
-
-## Phase 3: The Secure Vault ✅ COMPLETE
-**Goal:** Cloud database with simplified name-only authentication for demo.
-
-### Core
-- [x] Supabase PostgreSQL backend (profiles, messages, ledger_entries)
+### 3. Local Chat Persistence
+- [ ] **Storage Logic:** Implement `useChatHistory` hook reading from `localStorage`.
+- [ ] **Chat UI:** Build the message feed component with "Typing" states.
+- [ ] **Response Engine:** Implement the hardcoded "Ghost" responses (1.5s delay).
 - [x] VaultEntrance screen — "New visitor?" / "Returning?" flow
 - [x] Name-only auth (no passwords for demo simplicity)
 - [x] Cross-device sync via Supabase

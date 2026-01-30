@@ -3,6 +3,15 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
+// Hash password using SHA-256 (for demo purposes - production would use bcrypt)
+async function hashPassword(password) {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(password)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -40,8 +49,8 @@ export function AuthProvider({ children }) {
     return data
   }
 
-  // Login - find existing user by username
-  const login = async (username) => {
+  // Login - find existing user by username and verify password
+  const login = async (username, password) => {
     if (!supabase) {
       return { error: { message: 'Database not configured' } }
     }
@@ -61,13 +70,19 @@ export function AuthProvider({ children }) {
       return { error: { message: 'User not found' } }
     }
 
+    // Verify password
+    const passwordHash = await hashPassword(password)
+    if (data.password_hash !== passwordHash) {
+      return { error: { message: 'Incorrect password' } }
+    }
+
     setProfile(data)
     localStorage.setItem('proxy_user_id', data.id)
     return { data, error: null }
   }
 
-  // Create new user
-  const createUser = async (username) => {
+  // Create new user with password
+  const createUser = async (username, password) => {
     if (!supabase) {
       return { error: { message: 'Database not configured' } }
     }
@@ -83,19 +98,23 @@ export function AuthProvider({ children }) {
       return { error: { message: 'Name already taken' } }
     }
 
+    // Hash password
+    const passwordHash = await hashPassword(password)
+
     // Create new profile
     const { data, error } = await supabase
       .from('profiles')
       .insert({
         username: username.toLowerCase(),
         display_name: username,
+        password_hash: passwordHash,
       })
       .select()
       .single()
 
     if (error) {
       console.log('Create user error:', error)
-      return { error }
+      return { error: { message: error.message || 'Failed to create account' } }
     }
 
     setProfile(data)

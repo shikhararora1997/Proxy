@@ -25,33 +25,66 @@ export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
     addEntry,
     completeEntry,
     uncompleteEntry,
+    updateDueDate,
     deleteEntry,
     pendingCount,
   } = ledger || ownLedger
   const [newItem, setNewItem] = useState('')
   const [newPriority, setNewPriority] = useState('medium')
+  const [newDueDate, setNewDueDate] = useState('')
   const [isAdding, setIsAdding] = useState(false)
+
+  // Default due date: 3 hours from now
+  const getDefaultDueDate = () => {
+    const d = new Date()
+    d.setHours(d.getHours() + 3)
+    return d.toISOString()
+  }
 
   const handleAddEntry = async (e) => {
     e.preventDefault()
     if (!newItem.trim()) return
 
-    await addEntry(newItem.trim(), null, null, newPriority)
+    const dueAt = newDueDate ? new Date(newDueDate).toISOString() : getDefaultDueDate()
+    await addEntry(newItem.trim(), null, null, newPriority, dueAt)
     setNewItem('')
     setNewPriority('medium')
+    setNewDueDate('')
     setIsAdding(false)
   }
 
+  // Check if task is overdue
+  const isOverdue = (entry) => {
+    if (!entry.due_at || entry.status === 'resolved') return false
+    return new Date(entry.due_at) < new Date()
+  }
+
   // Group by priority, with completed items sorted to bottom of each group
+  // Overdue tasks always go to HIGH priority
   const sortGroup = (items) => {
     const pending = items.filter(e => e.status === 'pending')
     const completed = items.filter(e => e.status === 'resolved')
+    // Sort pending: overdue first, then by due date
+    pending.sort((a, b) => {
+      const aOverdue = isOverdue(a)
+      const bOverdue = isOverdue(b)
+      if (aOverdue && !bOverdue) return -1
+      if (!aOverdue && bOverdue) return 1
+      return 0
+    })
     return [...pending, ...completed]
   }
 
-  const highTasks = sortGroup(visibleEntries.filter(e => e.priority === 'high'))
-  const mediumTasks = sortGroup(visibleEntries.filter(e => e.priority === 'medium' || !e.priority))
-  const lowTasks = sortGroup(visibleEntries.filter(e => e.priority === 'low'))
+  // Overdue tasks go to HIGH regardless of original priority
+  const overdueEntries = visibleEntries.filter(e => isOverdue(e))
+  const nonOverdueEntries = visibleEntries.filter(e => !isOverdue(e))
+
+  const highTasks = sortGroup([
+    ...overdueEntries,
+    ...nonOverdueEntries.filter(e => e.priority === 'high')
+  ])
+  const mediumTasks = sortGroup(nonOverdueEntries.filter(e => e.priority === 'medium' || !e.priority))
+  const lowTasks = sortGroup(nonOverdueEntries.filter(e => e.priority === 'low'))
 
   return (
     <>
@@ -137,6 +170,7 @@ export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
                 theme={theme}
                 onComplete={completeEntry}
                 onUncomplete={uncompleteEntry}
+                onUpdateDueDate={updateDueDate}
                 onDelete={deleteEntry}
               />
               <PrioritySection
@@ -146,6 +180,7 @@ export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
                 theme={theme}
                 onComplete={completeEntry}
                 onUncomplete={uncompleteEntry}
+                onUpdateDueDate={updateDueDate}
                 onDelete={deleteEntry}
               />
               <PrioritySection
@@ -155,6 +190,7 @@ export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
                 theme={theme}
                 onComplete={completeEntry}
                 onUncomplete={uncompleteEntry}
+                onUpdateDueDate={updateDueDate}
                 onDelete={deleteEntry}
               />
 
@@ -223,6 +259,30 @@ export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
                   ))}
                 </div>
 
+                {/* Due date & time input */}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`${theme.font.chat} text-[10px]`}
+                    style={{ color: theme.text.muted }}
+                  >
+                    Due:
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={newDueDate}
+                    onChange={(e) => setNewDueDate(e.target.value)}
+                    className={`
+                      flex-1 p-1.5 rounded text-xs ${theme.font.chat}
+                      outline-none
+                    `}
+                    style={{
+                      backgroundColor: theme.background,
+                      color: theme.text.primary,
+                      border: `1px solid ${theme.accent}30`,
+                    }}
+                  />
+                </div>
+
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -243,6 +303,7 @@ export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
                       setIsAdding(false)
                       setNewItem('')
                       setNewPriority('medium')
+                      setNewDueDate('')
                     }}
                     className={`
                       px-3 p-2 rounded text-xs ${theme.font.chat}
@@ -283,7 +344,7 @@ export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
   )
 }
 
-function PrioritySection({ label, color, tasks, theme, onComplete, onUncomplete, onDelete }) {
+function PrioritySection({ label, color, tasks, theme, onComplete, onUncomplete, onUpdateDueDate, onDelete }) {
   if (tasks.length === 0) return null
 
   return (
@@ -313,6 +374,7 @@ function PrioritySection({ label, color, tasks, theme, onComplete, onUncomplete,
             key={entry.id}
             entry={entry}
             theme={theme}
+            onUpdateDueDate={onUpdateDueDate}
             index={index}
             onComplete={() => onComplete(entry.id)}
             onUncomplete={() => onUncomplete(entry.id)}
@@ -324,13 +386,50 @@ function PrioritySection({ label, color, tasks, theme, onComplete, onUncomplete,
   )
 }
 
-function TaskItem({ entry, theme, index, onComplete, onUncomplete, onDelete }) {
+function TaskItem({ entry, theme, index, onComplete, onUncomplete, onUpdateDueDate, onDelete }) {
   const isCompleted = entry.status === 'resolved'
-  const [showDelete, setShowDelete] = useState(false)
+  const [showActions, setShowActions] = useState(false)
+  const [editingDue, setEditingDue] = useState(false)
+
+  // Format due date for display
+  const formatDueDate = (dueAt) => {
+    if (!dueAt) return null
+    const due = new Date(dueAt)
+    const now = new Date()
+    const diffMs = due - now
+    const diffHours = Math.ceil(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffMs < 0) return { text: 'Overdue', color: '#EF4444', isOverdue: true }
+    if (diffHours <= 1) return { text: '1h', color: '#EF4444' }
+    if (diffHours <= 12) return { text: `${diffHours}h`, color: '#F59E0B' }
+    if (diffDays === 0) return { text: 'Today', color: '#F59E0B' }
+    if (diffDays === 1) return { text: 'Tomorrow', color: '#F59E0B' }
+    if (diffDays <= 7) return { text: `${diffDays}d`, color: theme.text.muted }
+    return { text: due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), color: theme.text.muted }
+  }
+
+  const dueInfo = formatDueDate(entry.due_at)
+
+  // Format for date input
+  const formatForInput = (dueAt) => {
+    if (!dueAt) return ''
+    return new Date(dueAt).toISOString().split('T')[0]
+  }
+
+  const handleDueDateChange = (e) => {
+    const newDate = e.target.value
+    if (newDate) {
+      const d = new Date(newDate)
+      d.setHours(18, 0, 0, 0) // Default to 6pm
+      onUpdateDueDate(entry.id, d.toISOString())
+    }
+    setEditingDue(false)
+  }
 
   return (
     <motion.div
-      className="group relative flex items-start gap-2.5 p-2.5 rounded border"
+      className="group relative flex flex-col gap-1 p-2.5 rounded border"
       style={{
         backgroundColor: `${theme.background}80`,
         borderColor: `${theme.accent}10`,
@@ -339,58 +438,108 @@ function TaskItem({ entry, theme, index, onComplete, onUncomplete, onDelete }) {
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: isCompleted ? 0.5 : 1, x: 0 }}
       transition={{ delay: index * 0.03 }}
-      onClick={() => setShowDelete(!showDelete)}
+      onClick={() => setShowActions(!showActions)}
     >
-      {/* Checkbox */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          isCompleted ? onUncomplete() : onComplete()
-        }}
-        className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-sm border flex items-center justify-center transition-colors"
-        style={{
-          borderColor: isCompleted ? '#22C55E' : `${theme.text.muted}50`,
-          backgroundColor: isCompleted ? '#22C55E' : 'transparent',
-          cursor: 'pointer',
-        }}
-      >
-        {isCompleted && (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        )}
-      </button>
+      <div className="flex items-start gap-2.5">
+        {/* Checkbox */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            isCompleted ? onUncomplete() : onComplete()
+          }}
+          className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-sm border flex items-center justify-center transition-colors"
+          style={{
+            borderColor: isCompleted ? '#22C55E' : `${theme.text.muted}50`,
+            backgroundColor: isCompleted ? '#22C55E' : 'transparent',
+            cursor: 'pointer',
+          }}
+        >
+          {isCompleted && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+        </button>
 
-      {/* Description */}
-      <p
-        className={`${theme.font.chat} text-sm flex-1 ${isCompleted ? 'line-through' : ''}`}
-        style={{ color: isCompleted ? theme.text.muted : theme.text.primary }}
-      >
-        {entry.description}
-      </p>
-
-      {/* Delete button (shown on click) */}
-      <AnimatePresence>
-        {showDelete && (
-          <motion.button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            className="flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors"
-            style={{
-              backgroundColor: '#EF444420',
-              color: '#EF4444',
-            }}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+        {/* Description + Due date */}
+        <div className="flex-1 min-w-0">
+          <p
+            className={`${theme.font.chat} text-sm ${isCompleted ? 'line-through' : ''}`}
+            style={{ color: isCompleted ? theme.text.muted : theme.text.primary }}
           >
-            DEL
-          </motion.button>
-        )}
-      </AnimatePresence>
+            {entry.description}
+          </p>
+
+          {/* Due date display/edit */}
+          {!isCompleted && (
+            <div className="flex items-center gap-1.5 mt-1">
+              {editingDue ? (
+                <input
+                  type="date"
+                  defaultValue={formatForInput(entry.due_at)}
+                  onChange={handleDueDateChange}
+                  onBlur={() => setEditingDue(false)}
+                  onClick={(e) => e.stopPropagation()}
+                  autoFocus
+                  className="text-[10px] font-mono px-1 py-0.5 rounded border outline-none"
+                  style={{
+                    backgroundColor: theme.background,
+                    borderColor: `${theme.accent}30`,
+                    color: theme.text.primary,
+                  }}
+                />
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditingDue(true)
+                  }}
+                  className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded hover:opacity-80 transition-opacity"
+                  style={{
+                    backgroundColor: dueInfo ? `${dueInfo.color}15` : `${theme.text.muted}15`,
+                    color: dueInfo?.color || theme.text.muted,
+                  }}
+                >
+                  <ClockIcon />
+                  {dueInfo?.text || 'Set due'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Delete button (shown on click) */}
+        <AnimatePresence>
+          {showActions && (
+            <motion.button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors"
+              style={{
+                backgroundColor: '#EF444420',
+                color: '#EF4444',
+              }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+            >
+              DEL
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
+  )
+}
+
+function ClockIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
   )
 }
 
@@ -403,7 +552,7 @@ export function LedgerToggle({ personaId, onClick, isOpen }) {
   return (
     <motion.button
       onClick={onClick}
-      className="md:hidden fixed right-4 bottom-24 z-30 p-3 rounded-full shadow-lg"
+      className="md:hidden fixed right-4 bottom-48 z-30 p-3 rounded-full shadow-lg"
       style={{
         backgroundColor: theme.accent,
         color: theme.background,

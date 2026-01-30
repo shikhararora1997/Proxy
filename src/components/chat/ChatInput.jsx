@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { THEMES } from '../../config/themes'
 
@@ -8,13 +8,34 @@ import { THEMES } from '../../config/themes'
 export function ChatInput({ personaId, onSend, onAssess, disabled = false }) {
   const theme = THEMES[personaId]
   const [value, setValue] = useState('')
-  const inputRef = useRef(null)
+  const textareaRef = useRef(null)
+
+  // Auto-resize textarea based on content
+  const adjustHeight = useCallback(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px' // Max 120px (~4 lines)
+    }
+  }, [])
 
   useEffect(() => {
     if (!disabled) {
-      inputRef.current?.focus()
+      textareaRef.current?.focus()
     }
   }, [disabled])
+
+  // Scroll chat into view when input is focused (mobile keyboard)
+  const handleFocus = () => {
+    // Small delay to let keyboard open
+    setTimeout(() => {
+      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 300)
+  }
+
+  useEffect(() => {
+    adjustHeight()
+  }, [value, adjustHeight])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -23,10 +44,29 @@ export function ChatInput({ personaId, onSend, onAssess, disabled = false }) {
 
     onSend(trimmed)
     setValue('')
+    // Reset height after clearing
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    // Submit on Enter (without Shift)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e)
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 border-t" style={{ borderColor: `${theme.accent}20` }}>
+    <form
+      onSubmit={handleSubmit}
+      className="flex-shrink-0 p-4 border-t"
+      style={{
+        borderColor: `${theme.accent}20`,
+        paddingBottom: `max(1rem, env(safe-area-inset-bottom))`,
+      }}
+    >
       {/* Assess Ledger button */}
       {onAssess && (
         <motion.button
@@ -50,22 +90,33 @@ export function ChatInput({ personaId, onSend, onAssess, disabled = false }) {
       )}
 
       <div
-        className="flex items-center gap-3 p-2 rounded-lg"
+        className="flex items-end gap-3 p-2 rounded-lg"
         style={{ backgroundColor: theme.surface }}
       >
-        <input
-          ref={inputRef}
-          type="text"
+        <textarea
+          ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
           placeholder={getPlaceholder(personaId)}
           disabled={disabled}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="sentences"
+          rows={1}
           className={`
-            flex-1 bg-transparent outline-none text-sm md:text-base px-2
+            flex-1 bg-transparent outline-none px-2 resize-none
             ${theme.font.chat}
             placeholder:opacity-40
           `}
-          style={{ color: theme.text.primary }}
+          style={{
+            color: theme.text.primary,
+            fontSize: '16px', // Prevents iOS zoom on focus
+            lineHeight: '1.4',
+            minHeight: '24px',
+            maxHeight: '120px',
+          }}
         />
         <motion.button
           type="submit"

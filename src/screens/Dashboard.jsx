@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { useProxy } from '../context/ProxyContext'
+import { useProxy, STAGES } from '../context/ProxyContext'
 import { useAuth } from '../context/AuthContext'
 import { THEMES, WELCOME_MESSAGES } from '../config/themes'
 import { PERSONA_NAMES } from '../config/personas'
@@ -11,6 +11,10 @@ import { ChatFeed } from '../components/chat/ChatFeed'
 import { ChatInput } from '../components/chat/ChatInput'
 import { ActiveLedger, LedgerToggle } from '../components/ledger/ActiveLedger'
 import { LensFocusPage } from '../components/transitions/LensFocus'
+import { Tutorial } from '../components/tutorial/Tutorial'
+import { NotificationPrompt } from '../components/ui/NotificationPrompt'
+
+const TUTORIAL_STORAGE_KEY = 'proxy_tutorial_complete'
 
 /**
  * Dashboard Screen
@@ -19,7 +23,7 @@ import { LensFocusPage } from '../components/transitions/LensFocus'
  * Themed per persona with active ledger sidebar.
  */
 export function Dashboard() {
-  const { username, personaId, resetFlow } = useProxy()
+  const { username, personaId, resetFlow, shouldTriggerReflection, setStage } = useProxy()
   const { logout, isOnline } = useAuth()
   const theme = THEMES[personaId]
   const personaName = PERSONA_NAMES[personaId]
@@ -34,12 +38,48 @@ export function Dashboard() {
   } = useMessages()
 
   const ledger = useLedger()
-  const { entries: ledgerEntries, addEntry, completeTaskByQuery } = ledger
+  const { entries: ledgerEntries, addEntry, completeTaskByQuery, updateTaskByQuery } = ledger
 
   const [isTyping, setIsTyping] = useState(false)
   const [ledgerOpen, setLedgerOpen] = useState(window.innerWidth >= 768)
+  const [showTutorial, setShowTutorial] = useState(false)
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false)
   const welcomeSentRef = useRef(false)
+  const tutorialCheckedRef = useRef(false)
   const aiEnabled = isAIConfigured()
+
+  // Check if tutorial should be shown (first visit only)
+  useEffect(() => {
+    if (!tutorialCheckedRef.current && !messagesLoading) {
+      tutorialCheckedRef.current = true
+      const tutorialComplete = localStorage.getItem(TUTORIAL_STORAGE_KEY)
+      if (!tutorialComplete && isEmpty) {
+        // Delay tutorial to let welcome message appear first
+        setTimeout(() => setShowTutorial(true), 2000)
+      }
+    }
+  }, [messagesLoading, isEmpty])
+
+  // Check if 3-day reflection should trigger
+  const reflectionCheckedRef = useRef(false)
+  useEffect(() => {
+    if (!reflectionCheckedRef.current && !messagesLoading) {
+      reflectionCheckedRef.current = true
+      // Small delay to let dashboard render first
+      setTimeout(() => {
+        if (shouldTriggerReflection()) {
+          setStage(STAGES.REFLECTION)
+        }
+      }, 1000)
+    }
+  }, [messagesLoading, shouldTriggerReflection, setStage])
+
+  const handleTutorialComplete = () => {
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true')
+    setShowTutorial(false)
+    // Show notification prompt after tutorial
+    setTimeout(() => setShowNotificationPrompt(true), 500)
+  }
 
   // Send welcome message on first visit
   useEffect(() => {
@@ -78,14 +118,21 @@ export function Dashboard() {
       // Display the conversational reply
       await addProxyMessage(response.message)
 
-      // Handle task actions (array of add/complete)
+      // Handle task actions (array of add/complete/update)
       if (response.task_actions && response.task_actions.length > 0) {
         for (const action of response.task_actions) {
-          const { type, description, priority, match_query } = action
+          const { type, description, priority, match_query, due_at } = action
           if (type === 'add' && description) {
-            await addEntry(description, null, null, priority || 'medium')
+            await addEntry(description, null, null, priority || 'medium', due_at || null)
           } else if (type === 'complete' && match_query) {
             await completeTaskByQuery(match_query)
+          } else if (type === 'update' && match_query) {
+            // Build updates object from provided fields
+            const updates = {}
+            if (priority) updates.priority = priority
+            if (due_at) updates.due_at = due_at
+            if (description) updates.description = description
+            await updateTaskByQuery(match_query, updates)
           }
         }
       }
@@ -95,7 +142,7 @@ export function Dashboard() {
     } finally {
       setIsTyping(false)
     }
-  }, [addUserMessage, addProxyMessage, personaId, messages, ledgerEntries, addEntry, completeTaskByQuery])
+  }, [addUserMessage, addProxyMessage, personaId, messages, ledgerEntries, addEntry, completeTaskByQuery, updateTaskByQuery])
 
   // Handle assess ledger (no user input, sends special token)
   const handleAssess = useCallback(async () => {
@@ -155,97 +202,100 @@ export function Dashboard() {
   return (
     <LensFocusPage>
       <div
-        className="h-screen-safe w-full flex"
+        className="h-screen-safe w-full flex flex-col"
         style={{ backgroundColor: theme.background }}
       >
-        {/* Main chat area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Header */}
-          <header
-            className="flex items-center justify-between px-4 py-3 border-b"
-            style={{ borderColor: `${theme.accent}20` }}
-          >
-            <div className="flex items-center gap-3">
-              {/* Persona avatar */}
-              <motion.div
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: theme.accent }}
-                whileHover={{ scale: 1.05 }}
+        {/* Header */}
+        <header
+          className="flex-none flex items-center justify-between px-4 py-3 border-b"
+          style={{
+            borderColor: `${theme.accent}20`,
+            backgroundColor: theme.background,
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <motion.div
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: theme.accent }}
+              whileHover={{ scale: 1.05 }}
+            >
+              <span
+                className={`${theme.font.display} text-sm font-medium`}
+                style={{ color: theme.background }}
               >
-                <span
-                  className={`${theme.font.display} text-sm font-medium`}
-                  style={{ color: theme.background }}
-                >
-                  {personaName[0]}
-                </span>
-              </motion.div>
+                {personaName[0]}
+              </span>
+            </motion.div>
 
-              <div>
-                <h1
-                  className={`${theme.font.display} text-base font-medium`}
-                  style={{ color: theme.text.primary }}
-                >
-                  {personaName}
-                </h1>
-                <p
-                  className={`${theme.font.chat} text-xs`}
-                  style={{ color: theme.text.muted }}
-                >
-                  {aiEnabled ? '● AI Active' : isOnline ? 'Connected' : 'Offline Mode'}
-                </p>
-              </div>
-            </div>
-
-            {/* Header actions */}
-            <div className="flex items-center gap-2">
-              {/* Desktop ledger toggle */}
-              <button
-                onClick={() => setLedgerOpen(!ledgerOpen)}
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors"
-                style={{
-                  backgroundColor: ledgerOpen ? `${theme.accent}20` : 'transparent',
-                  color: theme.text.secondary,
-                }}
+            <div>
+              <h1
+                className={`${theme.font.display} text-base font-medium`}
+                style={{ color: theme.text.primary }}
               >
-                <LedgerIconSmall />
-                Ledger
-              </button>
-
-              {/* Menu */}
-              <DropdownMenu
-                theme={theme}
-                onClearChat={clearMessages}
-                onLogout={handleLogout}
-                username={username}
-                isOnline={isOnline}
-              />
+                {personaName}
+              </h1>
+              <p
+                className={`${theme.font.chat} text-xs`}
+                style={{ color: theme.text.muted }}
+              >
+                {aiEnabled ? '● AI Active' : isOnline ? 'Connected' : 'Offline Mode'}
+              </p>
             </div>
-          </header>
+          </div>
 
-          {/* Chat feed */}
-          <ChatFeed
-            messages={formattedMessages}
-            personaId={personaId}
-            isTyping={isTyping}
-          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setLedgerOpen(!ledgerOpen)}
+              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors"
+              style={{
+                backgroundColor: ledgerOpen ? `${theme.accent}20` : 'transparent',
+                color: theme.text.secondary,
+              }}
+            >
+              <LedgerIconSmall />
+              Ledger
+            </button>
 
-          {/* Chat input */}
-          <ChatInput
-            personaId={personaId}
-            onSend={handleSend}
-            onAssess={handleAssess}
-            disabled={isTyping}
-          />
-        </div>
+            <DropdownMenu
+              theme={theme}
+              onClearChat={clearMessages}
+              onLogout={handleLogout}
+              username={username}
+              isOnline={isOnline}
+              taskCounts={{
+                high: ledgerEntries.filter(e => e.priority === 'high' && e.status !== 'resolved').length,
+                medium: ledgerEntries.filter(e => e.priority === 'medium' && e.status !== 'resolved').length,
+                low: ledgerEntries.filter(e => e.priority === 'low' && e.status !== 'resolved').length,
+              }}
+            />
+          </div>
+        </header>
 
-        {/* Desktop sidebar */}
-        <div className="hidden md:block">
-          <ActiveLedger
-            personaId={personaId}
-            isOpen={ledgerOpen}
-            onClose={() => setLedgerOpen(false)}
-            ledger={ledger}
-          />
+        {/* Chat area - takes remaining space */}
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0">
+            <ChatFeed
+              messages={formattedMessages}
+              personaId={personaId}
+              isTyping={isTyping}
+            />
+            <ChatInput
+              personaId={personaId}
+              onSend={handleSend}
+              onAssess={handleAssess}
+              disabled={isTyping}
+            />
+          </div>
+
+          {/* Desktop sidebar */}
+          <div className="hidden md:block">
+            <ActiveLedger
+              personaId={personaId}
+              isOpen={ledgerOpen}
+              onClose={() => setLedgerOpen(false)}
+              ledger={ledger}
+            />
+          </div>
         </div>
 
         {/* Mobile drawer */}
@@ -265,12 +315,64 @@ export function Dashboard() {
           isOpen={ledgerOpen}
         />
       </div>
+
+      {/* Tutorial overlay for first-time users */}
+      {showTutorial && (
+        <Tutorial
+          personaId={personaId}
+          onComplete={handleTutorialComplete}
+        />
+      )}
+
+      {/* Notification permission prompt (after tutorial) */}
+      {showNotificationPrompt && (
+        <NotificationPrompt
+          theme={theme}
+          onDismiss={() => setShowNotificationPrompt(false)}
+        />
+      )}
     </LensFocusPage>
   )
 }
 
-function DropdownMenu({ theme, onClearChat, onLogout, username, isOnline }) {
+function DropdownMenu({ theme, onClearChat, onLogout, username, isOnline, taskCounts }) {
   const [isOpen, setIsOpen] = useState(false)
+
+  const handleTestNotification = async () => {
+    if (!('Notification' in window)) {
+      alert('Notifications not supported')
+      return
+    }
+
+    if (Notification.permission !== 'granted') {
+      alert('Please enable notifications first')
+      return
+    }
+
+    // Get service worker registration
+    const registration = await navigator.serviceWorker.ready
+
+    // Build message based on actual task counts
+    const { high, medium, low } = taskCounts
+    const total = high + medium + low
+    let body = total === 0
+      ? 'No pending tasks. Nice work!'
+      : high > 0
+        ? `You have ${high} high priority and ${medium + low} other tasks pending`
+        : `You have ${total} task${total > 1 ? 's' : ''} pending`
+
+    // Show notification via service worker
+    registration.showNotification('PROXY', {
+      body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/badge-72.png',
+      tag: 'proxy-test',
+      renotify: true,
+      vibrate: [100, 50, 100]
+    })
+
+    setIsOpen(false)
+  }
 
   return (
     <div className="relative">
@@ -317,6 +419,14 @@ function DropdownMenu({ theme, onClearChat, onLogout, username, isOnline }) {
                 {isOnline ? '● Synced' : '○ Local only'}
               </p>
             </div>
+
+            <button
+              onClick={handleTestNotification}
+              className={`w-full px-4 py-2.5 text-left ${theme.font.chat} text-sm hover:bg-white/5 transition-colors`}
+              style={{ color: theme.text.secondary }}
+            >
+              Test notification
+            </button>
 
             <button
               onClick={() => {

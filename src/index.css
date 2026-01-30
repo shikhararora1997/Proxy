@@ -13,9 +13,25 @@ body {
   overscroll-behavior: none;
 }
 
-/* Full viewport height that respects mobile browser chrome */
+/* Full viewport height that respects mobile browser chrome and keyboard */
 .h-screen-safe {
-  height: 100dvh;
+  /* Use visual viewport height when available (handles keyboard) */
+  height: var(--viewport-height, 100dvh);
+  /* PWA safe area padding */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  box-sizing: border-box;
+}
+
+/* Utility classes for safe area */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Custom selection color */
@@ -26,10 +42,26 @@ body {
 /* Remove default input styling */
 input {
   @apply bg-transparent border-none outline-none;
+  /* Prevent iOS zoom on focus */
+  font-size: 16px !important;
+  /* Smooth touch handling */
+  touch-action: manipulation;
 }
 
 input::placeholder {
   @apply text-white/30;
+}
+
+/* Prevent double-tap zoom on buttons */
+button, a {
+  touch-action: manipulation;
+}
+
+/* Smooth keyboard appearance - keep input visible */
+@supports (height: 100dvh) {
+  .h-screen-safe {
+    height: 100dvh;
+  }
 }
 
 /* Hide caret when we show custom cursor */

@@ -20,14 +20,17 @@ export function VaultEntrance() {
   const [mode, setMode] = useState('ask')
   const [isNewUser, setIsNewUser] = useState(false)
   const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null) // 'granted' | 'denied'
 
-  const inputRef = useRef(null)
+  const nameInputRef = useRef(null)
+  const passwordInputRef = useRef(null)
 
   useEffect(() => {
     if (mode === 'identify' || mode === 'create') {
-      const timer = setTimeout(() => inputRef.current?.focus(), 500)
+      const timer = setTimeout(() => nameInputRef.current?.focus(), 500)
       return () => clearTimeout(timer)
     }
   }, [mode])
@@ -40,8 +43,30 @@ export function VaultEntrance() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const trimmed = name.trim()
-    if (!trimmed) return
+
+    const trimmedName = name.trim()
+    const trimmedPassword = password.trim()
+
+    if (!trimmedName) {
+      setError('Username required')
+      return
+    }
+    if (!trimmedPassword) {
+      setError('Password required')
+      return
+    }
+
+    if (isNewUser) {
+      // Validate password for new users
+      if (trimmedPassword.length < 4) {
+        setError('Password must be at least 4 characters')
+        return
+      }
+      if (trimmedPassword !== confirmPassword) {
+        setError('Passwords do not match')
+        return
+      }
+    }
 
     setMode('processing')
     setError(null)
@@ -54,44 +79,45 @@ export function VaultEntrance() {
       localStorage.removeItem('proxy_chat_history')
       localStorage.removeItem('proxy_ledger_entries')
 
-      // Create new user
-      const { data, error: createError } = await createUser(trimmed)
+      // Create new user with password
+      const { data, error: createError } = await createUser(trimmedName, trimmedPassword)
 
       if (createError) {
         setResult('denied')
-        setError(createError.message)
+        setError(createError.message || 'Failed to create account')
         setTimeout(() => {
           setMode('create')
           setResult(null)
-          setName('')
+          setPassword('')
+          setConfirmPassword('')
         }, 2000)
         return
       }
 
       // Success - new user goes to onboarding
       setResult('granted')
-      setUsername(trimmed)
-      setTimeout(() => {
-        setStage(STAGES.DIAGNOSTIC)
-      }, 1500)
+      setUsername(trimmedName)
+      // Shorter delay for snappier UX
+      setTimeout(() => setStage(STAGES.DIAGNOSTIC), 800)
     } else {
-      // Find existing user
-      const { data, error: loginError } = await login(trimmed)
+      // Find existing user and verify password
+      const { data, error: loginError } = await login(trimmedName, trimmedPassword)
 
       if (loginError) {
         setResult('denied')
-        setError(loginError.message)
+        setError(loginError.message || 'Login failed')
         setTimeout(() => {
           setMode('identify')
           setResult(null)
-          setName('')
+          setPassword('')
         }, 2000)
         return
       }
 
       // Success - existing user goes to dashboard
       setResult('granted')
-      setUsername(data.display_name || trimmed)
+      setUsername(data.display_name || trimmedName)
+      // Shorter delay for snappier UX
       setTimeout(() => {
         // Check if they have a persona (completed onboarding)
         if (data.persona_id) {
@@ -100,7 +126,7 @@ export function VaultEntrance() {
           // No persona yet, send to onboarding
           setStage(STAGES.DIAGNOSTIC)
         }
-      }, 1500)
+      }, 800)
     }
   }
 
@@ -167,7 +193,7 @@ export function VaultEntrance() {
           </h1>
         </motion.div>
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout">
           {/* Step 1: Ask if new user */}
           {mode === 'ask' && (
             <motion.div
@@ -215,38 +241,66 @@ export function VaultEntrance() {
               <label className="block text-white/90 font-mono text-lg mb-6">
                 Identify yourself.
               </label>
+
+              {/* Username */}
               <div className="flex items-center">
                 <span className="text-white/40 font-mono mr-3">{'>'}</span>
-                <div className="relative flex-1">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-transparent text-white font-mono text-lg outline-none hide-caret"
-                    autoComplete="off"
-                    autoCapitalize="off"
-                  />
-                  <span className="absolute top-0 left-0 pointer-events-none font-mono text-lg text-transparent">
-                    {name}<CursorBlink />
-                  </span>
-                </div>
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="username"
+                  className="w-full bg-transparent text-white font-mono text-lg outline-none placeholder:text-white/20"
+                  style={{ fontSize: '16px' }}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                />
               </div>
-              <div className="mt-4 h-px bg-white/20" />
+              <div className="mt-2 h-px bg-white/20" />
+
+              {/* Password */}
+              <div className="flex items-center mt-4">
+                <span className="text-white/40 font-mono mr-3">{'>'}</span>
+                <input
+                  ref={passwordInputRef}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="password"
+                  className="w-full bg-transparent text-white font-mono text-lg outline-none placeholder:text-white/20"
+                  style={{ fontSize: '16px' }}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="mt-2 h-px bg-white/20" />
+
+              {/* Error message */}
+              {error && (
+                <p className="mt-3 text-red-400 font-mono text-xs">{error}</p>
+              )}
+
               <div className="mt-6 flex justify-between items-center">
                 <button
                   type="button"
                   onClick={() => {
                     setMode('ask')
                     setName('')
+                    setPassword('')
+                    setError(null)
                   }}
                   className="text-white/30 font-mono text-xs hover:text-white/50 transition-colors"
                 >
                   ← BACK
                 </button>
-                <p className="text-white/20 font-mono text-xs tracking-wider">
-                  PRESS ENTER
-                </p>
+                <button
+                  type="submit"
+                  className="px-6 py-2 border border-white/30 text-white/70 font-mono text-sm
+                           hover:border-white/60 hover:text-white hover:bg-white/5
+                           transition-all duration-300 tracking-wider"
+                >
+                  ENTER
+                </button>
               </div>
             </motion.form>
           )}
@@ -262,40 +316,83 @@ export function VaultEntrance() {
               transition={{ duration: 0.4 }}
             >
               <label className="block text-white/90 font-mono text-lg mb-6">
-                What's your name?
+                Create your identity.
               </label>
+
+              {/* Username */}
               <div className="flex items-center">
                 <span className="text-white/40 font-mono mr-3">{'>'}</span>
-                <div className="relative flex-1">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-transparent text-white font-mono text-lg outline-none hide-caret"
-                    autoComplete="off"
-                    autoCapitalize="words"
-                  />
-                  <span className="absolute top-0 left-0 pointer-events-none font-mono text-lg text-transparent">
-                    {name}<CursorBlink />
-                  </span>
-                </div>
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="choose a username"
+                  className="w-full bg-transparent text-white font-mono text-lg outline-none placeholder:text-white/20"
+                  style={{ fontSize: '16px' }}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                />
               </div>
-              <div className="mt-4 h-px bg-white/20" />
+              <div className="mt-2 h-px bg-white/20" />
+
+              {/* Password */}
+              <div className="flex items-center mt-4">
+                <span className="text-white/40 font-mono mr-3">{'>'}</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="create password"
+                  className="w-full bg-transparent text-white font-mono text-lg outline-none placeholder:text-white/20"
+                  style={{ fontSize: '16px' }}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="mt-2 h-px bg-white/20" />
+
+              {/* Confirm Password */}
+              <div className="flex items-center mt-4">
+                <span className="text-white/40 font-mono mr-3">{'>'}</span>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="confirm password"
+                  className="w-full bg-transparent text-white font-mono text-lg outline-none placeholder:text-white/20"
+                  style={{ fontSize: '16px' }}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="mt-2 h-px bg-white/20" />
+
+              {/* Error message */}
+              {error && (
+                <p className="mt-3 text-red-400 font-mono text-xs">{error}</p>
+              )}
+
               <div className="mt-6 flex justify-between items-center">
                 <button
                   type="button"
                   onClick={() => {
                     setMode('ask')
                     setName('')
+                    setPassword('')
+                    setConfirmPassword('')
+                    setError(null)
                   }}
                   className="text-white/30 font-mono text-xs hover:text-white/50 transition-colors"
                 >
                   ← BACK
                 </button>
-                <p className="text-white/20 font-mono text-xs tracking-wider">
-                  PRESS ENTER
-                </p>
+                <button
+                  type="submit"
+                  className="px-6 py-2 border border-white/30 text-white/70 font-mono text-sm
+                           hover:border-white/60 hover:text-white hover:bg-white/5
+                           transition-all duration-300 tracking-wider"
+                >
+                  CREATE
+                </button>
               </div>
             </motion.form>
           )}

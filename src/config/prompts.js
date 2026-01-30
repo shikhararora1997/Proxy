@@ -295,17 +295,17 @@ export function buildSystemPrompt(personaId, ledgerEntries = []) {
 
 HIGH PRIORITY (${pending.high.length}):
 ${pending.high.length > 0
-  ? pending.high.map(e => `- "${e.description}" (added: ${e.created_at || 'unknown'})`).join('\n')
+  ? pending.high.map(e => `- "${e.description}" (due: ${e.due_at ? new Date(e.due_at).toLocaleDateString() : 'not set'}, added: ${e.created_at ? new Date(e.created_at).toLocaleDateString() : 'unknown'})`).join('\n')
   : '- None'}
 
 MEDIUM PRIORITY (${pending.medium.length}):
 ${pending.medium.length > 0
-  ? pending.medium.map(e => `- "${e.description}" (added: ${e.created_at || 'unknown'})`).join('\n')
+  ? pending.medium.map(e => `- "${e.description}" (due: ${e.due_at ? new Date(e.due_at).toLocaleDateString() : 'not set'}, added: ${e.created_at ? new Date(e.created_at).toLocaleDateString() : 'unknown'})`).join('\n')
   : '- None'}
 
 LOW PRIORITY (${pending.low.length}):
 ${pending.low.length > 0
-  ? pending.low.map(e => `- "${e.description}" (added: ${e.created_at || 'unknown'})`).join('\n')
+  ? pending.low.map(e => `- "${e.description}" (due: ${e.due_at ? new Date(e.due_at).toLocaleDateString() : 'not set'}, added: ${e.created_at ? new Date(e.created_at).toLocaleDateString() : 'unknown'})`).join('\n')
   : '- None'}
 
 RECENTLY COMPLETED (${Math.min(completedItems.length, 5)}):
@@ -318,13 +318,31 @@ You also manage the user's task list. You MUST respond with valid JSON matching 
 { "message": "<your in-character reply>", "task_actions": [] }
 
 The "task_actions" array contains zero or more action objects. Each action is:
-{ "type": "add" | "complete", "description": "...", "priority": "high" | "medium" | "low", "match_query": "..." }
+{ "type": "add" | "complete" | "update", "description": "...", "priority": "high" | "medium" | "low", "due_at": "ISO date string", "match_query": "..." }
+
+ACTION TYPES:
+- "add": Create a NEW task. Requires "description", "priority", "due_at".
+- "complete": Mark an EXISTING task as done. Requires "match_query" (words to find the task).
+- "update": MODIFY an existing task (change priority, deadline, or description). Requires "match_query" plus the fields to update.
+  IMPORTANT: When user wants to CHANGE something about an existing task (priority, deadline, wording), use "update" NOT "add".
 
 CRITICAL RULES:
 - "task_actions" MUST be an array. NEVER use "task_action" (singular). ALWAYS "task_actions" (plural).
 - If the user mentions MULTIPLE tasks, you MUST include a SEPARATE action object for EACH one. For example:
-  User: "remind me to wash dishes and have dinner"
-  Response: { "message": "...", "task_actions": [{"type":"add","description":"Wash dishes","priority":"medium"},{"type":"add","description":"Have dinner","priority":"medium"}] }
+  User: "remind me to wash dishes and call mom by friday"
+  Response: { "message": "...", "task_actions": [{"type":"add","description":"Wash dishes","priority":"medium","due_at":"2026-01-30T18:00:00Z"},{"type":"add","description":"Call mom","priority":"medium","due_at":"2026-01-31T18:00:00Z"}] }
+- UPDATING TASKS: If user says "change X to high priority" or "move X deadline to tomorrow", use "update" with match_query:
+  User: "make the groceries task high priority"
+  Response: { "message": "...", "task_actions": [{"type":"update","match_query":"groceries","priority":"high"}] }
+  User: "change the call mom deadline to friday"
+  Response: { "message": "...", "task_actions": [{"type":"update","match_query":"call mom","due_at":"2026-01-31T18:00:00Z"}] }
+- DUE DATES: The "due_at" field is an ISO 8601 timestamp. Current time is ${new Date().toISOString()}.
+  - If user says "in X hours" or "in X minutes", ADD that time to current timestamp. Example: "in 2 hours" from now = ${new Date(Date.now() + 2*60*60*1000).toISOString()}
+  - If user says "by friday" or "by tomorrow", calculate the actual date at 6pm and set due_at
+  - If user says "today", set due_at to today at 6pm
+  - If user does NOT specify a deadline, DEFAULT to 3 HOURS from now: ${new Date(Date.now() + 3*60*60*1000).toISOString()}
+  - ALWAYS include due_at for "add" actions. Never leave it null or omit it.
+  - IMPORTANT: For hour-based deadlines, calculate from CURRENT TIME, not from midnight.
 - If the user says they finished/completed/done with MULTIPLE tasks, include a SEPARATE "complete" action for EACH:
   User: "I finished washing dishes and having dinner"
   Response: { "message": "...", "task_actions": [{"type":"complete","match_query":"wash dishes"},{"type":"complete","match_query":"dinner"}] }
@@ -335,14 +353,29 @@ CRITICAL RULES:
 - ALWAYS return valid JSON. Never return plain text. ALWAYS use "task_actions" (plural array), NEVER "task_action" (singular).
 
 ASSESS LEDGER MODE:
-If the user's message is exactly "[ASSESS_LEDGER]", provide a thorough in-character assessment of their task list:
-- Comment on each pending task by priority group
-- Note how long tasks have been pending (use created_at dates if visible, otherwise comment on accumulation)
-- Motivate the user IN CHARACTER to complete tasks — be pushy, inspiring, or sarcastic depending on your persona
-- For actionable tasks, suggest HOW to do them (e.g., provide a template for "message hiring manager", suggest a route for "go on a run")
-- Your goal is to PUSH the user to finish their tasks. Be specific and helpful.
-- Keep task_actions as an empty array for assess mode — this is read-only analysis.
-- For assess mode, the message can be longer (up to 5-8 sentences).`
+If the user's message is exactly "[ASSESS_LEDGER]", provide a STRUCTURED in-character assessment:
+
+FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+
+**PRIORITY SCAN**
+[Comment on HIGH priority tasks first - be urgent and specific]
+[Then MEDIUM priority - what needs attention]
+[Then LOW priority - brief mention]
+
+**ACTIONABLE INTEL**
+[For 2-3 specific tasks, provide concrete HOW-TO advice]
+• Task name: specific action steps or template
+• Task name: specific action steps
+
+**VERDICT**
+[1-2 sentences summary - push the user to act NOW in your persona's voice]
+
+RULES:
+- Stay IN CHARACTER throughout
+- Be pushy, demanding, or sarcastic based on your persona
+- Reference specific task names
+- Keep task_actions as an empty array
+- Total length: 150-250 words`
 
   prompt += `\n\n---\nRESPONSE GUIDELINES:
 - Keep the "message" field concise (1-3 sentences typically)
@@ -375,4 +408,85 @@ export function buildMessages(systemPrompt, chatHistory = [], userMessage) {
   messages.push({ role: 'user', content: userMessage })
 
   return messages
+}
+
+/**
+ * Build prompt for 3-day reflection analysis
+ */
+export function buildReflectionPrompt(personaId, stats, username) {
+  const persona = PERSONA_PROMPTS[personaId]
+  if (!persona) return ''
+
+  const {
+    totalCreated,
+    totalCompleted,
+    totalPending,
+    completedByPriority,
+    pendingByPriority,
+    avgCompletionTimeHours,
+    completedTasks,
+    pendingTasks,
+    completionRate,
+  } = stats
+
+  let prompt = persona.systemPrompt
+
+  prompt += `\n\n---\n3-DAY REFLECTION MODE
+
+You are delivering a comprehensive 3-day performance review to ${username || 'the user'}. This is a formal assessment moment.
+
+STATISTICS FROM THE LAST 3 DAYS:
+- Tasks Created: ${totalCreated}
+- Tasks Completed: ${totalCompleted} (Rate: ${completionRate}%)
+- Tasks Still Pending: ${totalPending}
+${avgCompletionTimeHours ? `- Average Completion Time: ${avgCompletionTimeHours} hours` : ''}
+
+COMPLETED BY PRIORITY:
+- High: ${completedByPriority.high}
+- Medium: ${completedByPriority.medium}
+- Low: ${completedByPriority.low}
+
+STILL PENDING BY PRIORITY:
+- High: ${pendingByPriority.high}
+- Medium: ${pendingByPriority.medium}
+- Low: ${pendingByPriority.low}
+
+COMPLETED TASKS:
+${completedTasks.length > 0 ? completedTasks.map(t => `- "${t}" ✓`).join('\n') : '- None'}
+
+PENDING TASKS (oldest to newest):
+${pendingTasks.length > 0 ? pendingTasks.map(t => {
+  const age = Math.round((Date.now() - new Date(t.created).getTime()) / (1000 * 60 * 60 * 24))
+  return `- "${t.description}" [${t.priority?.toUpperCase() || 'MEDIUM'}] - ${age} days old`
+}).join('\n') : '- None'}
+
+YOUR ASSESSMENT MUST INCLUDE:
+
+1. **THE POST-MORTEM** (2-3 paragraphs)
+   - Detailed breakdown of successes and failures
+   - Call out specific tasks by name
+   - Identify patterns of "weakness" or "hesitation"
+   - Be brutally honest in your persona's voice
+
+2. **BEHAVIORAL PATTERNS** (1-2 paragraphs)
+   - Is the user prioritizing "easy" tasks over "high-value" ones?
+   - Are high-priority tasks being neglected?
+   - How does their completion rate compare to expectations?
+   - Any procrastination patterns visible?
+
+3. **THE DIRECTIVE** (1-2 paragraphs)
+   - Personalized "marching orders" for the next 3-day cycle
+   - Be specific: which pending tasks must be addressed FIRST?
+   - Set expectations clearly in your persona's commanding style
+   - End with motivation or a challenge appropriate to your character
+
+IMPORTANT:
+- Write in YOUR persona's voice entirely
+- Do NOT hold back - be pushy, demanding, inspiring, or sarcastic as your character would be
+- Reference specific tasks by name
+- This is NOT a gentle check-in - this is an ACCOUNTABILITY session
+- Do NOT use JSON format - write flowing prose
+- Length: Be thorough (300-500 words minimum)`
+
+  return prompt
 }

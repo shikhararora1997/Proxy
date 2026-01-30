@@ -7,6 +7,7 @@ import { Diagnostic } from './screens/Diagnostic'
 import { Revelation } from './screens/Revelation'
 import { Letter } from './screens/Letter'
 import { Dashboard } from './screens/Dashboard'
+import { ReflectionAssessment } from './screens/ReflectionAssessment'
 
 function FlowRouter() {
   const { stage } = useProxy()
@@ -30,6 +31,9 @@ function FlowRouter() {
       )}
       {stage === STAGES.DASHBOARD && (
         <Dashboard key="dashboard" />
+      )}
+      {stage === STAGES.REFLECTION && (
+        <ReflectionAssessment key="reflection" />
       )}
     </AnimatePresence>
   )

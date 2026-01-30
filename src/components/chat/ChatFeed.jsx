@@ -19,7 +19,7 @@ export function ChatFeed({ messages, personaId, isTyping = false }) {
   return (
     <div
       ref={feedRef}
-      className="flex-1 overflow-y-auto p-4 md:p-6"
+      className="flex-1 overflow-y-auto p-4 md:p-6 min-h-0"
       style={{
         // Add paper grain texture for Gandalf
         backgroundImage: theme.effects.grain

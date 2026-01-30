@@ -167,12 +167,17 @@ function OptionButton({ option, index, isSelected, isDisabled, onSelect }) {
         w-full text-left p-4 md:p-5 rounded-sm
         border border-white/10
         transition-colors duration-200
+        outline-none
         ${isSelected
           ? 'bg-white/10 border-white/30'
-          : 'bg-transparent hover:bg-white/5 hover:border-white/20'
+          : 'bg-transparent'
         }
         ${isDisabled && !isSelected ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
+      style={{
+        // Only apply hover styles on devices that support hover (not touch)
+        WebkitTapHighlightColor: 'transparent',
+      }}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{
@@ -180,6 +185,7 @@ function OptionButton({ option, index, isSelected, isDisabled, onSelect }) {
         delay: index * 0.08,
         ease: [0.4, 0, 0.2, 1],
       }}
+      whileHover={!isDisabled && !isSelected ? { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.2)' } : {}}
       whileTap={!isDisabled ? { scale: 0.98 } : {}}
     >
       <div className="flex items-start gap-4">

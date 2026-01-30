@@ -1,158 +1,197 @@
-# PROXY — Full Specification
+# PROXY Discovery Engine - Specification (Phase 1)
 
 ## 1. Overview
-PROXY is a persona-driven AI assistant that mirrors the user's personality. Users go through a cinematic diagnostic that assigns them one of 10 fictional personas. Each persona has a unique visual theme, voice, and behavior. The AI then acts as that persona in a chat interface, managing the user's task list through natural conversation.
+PROXY is a persona-driven AI assistant that mirrors the user's leadership style. Phase 1 focuses purely on the **Discovery Experience**—a cinematic onboarding flow that diagnoses the user's hidden profile (Alfred, Piccolo, Gandalf, or Deadpool) and culminates in a dramatic unveiling.
+
+## 2. Core Personas (The Hidden Profiles)
+
+| ID | Name | Archetype | Vibe | Colors | Tone |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **p1** | **Alfred** | The Custodian | Luxury Watch / Private Bank / Stoic | Navy (#0F172A) & Gold (#D4AF37) | Professional, dry wit, hyper-competent, slightly judgmental of inefficiency. |
+| **p2** | **Piccolo** | The Tactician | Brutalist / High-Performance / Aggressive | Deep Purple (#2E1065) & Black (#000000) | Intense, results-oriented, clipped sentences, aggressive, "Wolf of Wall Street" energy. |
+| **p3** | **Gandalf** | The Sage | Natural / Ethereal / Wise | Emerald (#064E3B) & Slate (#64748B) | Calm, metaphorical, long-term focused, cryptic, soothing but authoritative. |
+| **p4** | **Deadpool** | The Disruptor | Cyberpunk / Neon / Chaotic | Crimson (#991B1B) & Charcoal (#18181B) | Irreverent, chaotic, 4th-wall breaking, slang-heavy, fun but high-risk. |
 
 ---
 
-## 2. Core Personas (10 Hidden Profiles)
+## 3. The Flow
 
-| ID | Name | Archetype | Vibe | Primary Color | Accent Color |
-|:---|:-----|:----------|:-----|:-------------|:-------------|
-| p1 | Alfred | The Custodian | Luxury / Sarcastic Butler | Navy #0F172A | Gold #D4AF37 |
-| p2 | Sherlock | The Architect | Cold Logic / Forensic | Charcoal #1A1A1A | Cyan #00FFCC |
-| p3 | Batman | The Shadow | Tactical / Gritty | Black #000000 | Slate #4B5563 |
-| p4 | Black Widow | The Spy | Stealth / Precise | Pitch Black #080808 | Blood Red #B91C1C |
-| p5 | Gandalf | The Sage | Ethereal / Wise | Emerald #064E3B | Silver #D1D5DB |
-| p6 | Thanos | The Inevitable | Brutalist / Disciplined | Purple #2E1065 | Titan Gold #FDE047 |
-| p7 | Loki | The Deceiver | Unhinged / Disruptive | Asgardian Green #064E3B | Gold #D4AF37 |
-| p8 | Jessica Pearson | The Authority | Regal / Commanding | Pearl White #FFFFFF | Bronze #B19470 |
-| p9 | Tony Stark | The Inventor | High-Tech / Innovative | Stark Red #7F1D1D | Arc Reactor Blue #38B2AC |
-| p10 | Yoda | The Grandmaster | Zen / Ancient | Forest Green #14532D | Lightsaber Green #BEF264 |
+### S1: Stealth Entry
+- **UI:** Minimalist. Black screen.
+- **Micro-interaction:** Cursor blinks slowly.
+- **Prompt:** "Identify yourself."
+- **Input:** Single text field for `[Username]`.
+- **Action:** `Enter` key saves username to `localStorage` and transitions to S2.
 
----
+### S2: The Clinical Diagnostic
+- **Concept:** A sterile, psychological evaluation. No personality yet.
+- **UI:** Stark white text on black. Monospaced font (e.g., JetBrains Mono, Roboto Mono).
+- **Mechanism:** 5 multiple-choice questions displayed one by one.
+- **Feedback:** selecting an answer triggers a **0.5s glitch effect** in the color of the corresponding persona.
 
-## 3. User Flow
+#### The 5 Questions
 
-### S1: Vault Entrance
-- **New visitors:** "What's your name?" → Creates Supabase profile → Diagnostic
-- **Returning users:** "Identify yourself." → Finds profile → Dashboard
-- Terminal aesthetic with scan lines, green/red ACCESS GRANTED/DENIED
+**Q1: A crisis has occurred. The server is down, and clients are screaming. Your first move?**
+- A) "Assess the damage. Secure the remaining assets. Draft a report." (Points to: **Alfred**)
+- B) "Find the person responsible. Fix it. Ensure it never happens again." (Points to: **Piccolo**)
+- C) "Breathe. Problems are just opportunities in disguise. We will rebuild." (Points to: **Gandalf**)
+- D) "Tweet about it. Blame the intern. Press all the buttons." (Points to: **Deadpool**)
 
-### S2: Stealth Entry (Offline fallback)
-- Black screen, blinking cursor
-- "Identify yourself." → Username input → Diagnostic
+**Q2: Pick a workspace aesthetic.**
+- A) "Clean desk. Single monitor. Silence." (Points to: **Alfred**)
+- B) "Standing desk. Six screens. Stock tickers." (Points to: **Piccolo**)
+- C) "A cabin in the woods. Natural light. Smell of pine." (Points to: **Gandalf**)
+- D) "Basement. RGB lighting. Pizza boxes." (Points to: **Deadpool**)
 
-### S3: The Clinical Diagnostic
-- 8 weighted multiple-choice questions, one at a time
-- Each option distributes points across multiple personas (weighted scoring)
-- RGB glitch effect on answer selection (persona-colored flash)
-- Progress bar showing question count
+**Q3: How do you handle incompetence?**
+- A) "Correct it silently. Note it for the performance review." (Points to: **Alfred**)
+- B) "Call it out immediately. Survival of the fittest." (Points to: **Piccolo**)
+- C) "Guide them. Everyone is on their own path." (Points to: **Gandalf**)
+- D) "Mock them relentlessly until they quit or get cool." (Points to: **Deadpool**)
 
-### S4: The Revelation
-- "PROCESSING RESULTS" with pulsing dots
-- Screen shatters (ShatterEffect) revealing persona color
-- Persona name revealed dramatically with archetype subtitle
+**Q4: Choose a preferred communication style.**
+- A) "Brief. Written. Precise." (Points to: **Alfred**)
+- B) "Loud. Direct. In person." (Points to: **Piccolo**)
+- C) "Storytelling. Metaphors. Long-form." (Points to: **Gandalf**)
+- D) "Memes. GIFs. Sarcasm." (Points to: **Deadpool**)
 
-### S5: The Personal Letter
-- Personalized typewriter letter from the assigned persona
-- "ACCEPT MY PROXY" button → Dashboard
-- "NOT FOR ME — SHOW ANOTHER" → Cycles to a different persona (re-plays Revelation + Letter)
-- Cycles endlessly through all 10 personas without revealing the full list
+**Q5: What is your ultimate goal?**
+- A) "Order. Perfection. Legacy." (Points to: **Alfred**)
+- B) "Dominance. Speed. Victory." (Points to: **Piccolo**)
+- C) "Harmony. Enlightenment. Wisdom." (Points to: **Gandalf**)
+- D) "Chaos. Lulz. Tacos." (Points to: **Deadpool**)
 
-### S6: Dashboard
-- Chat feed with persona-themed UI
-- Task ledger sidebar (always open on desktop, drawer on mobile)
-- Assess Ledger button for AI-generated task review
-- Dropdown menu: clear chat, sign out
+### S3: The Revelation (Scoring Logic)
+- **Scoring:** Tally points for each persona.
+- **Tie-Breaker:** Priority Order: Alfred > Piccolo > Gandalf > Deadpool.
+- **Transition:** The screen "shatters" (visual effect) or dissolves into the winner's primary color theme.
 
----
-
-## 4. AI System
-
-### Model
-- OpenAI GPT-4o-mini
-- `response_format: { type: "json_object" }` for guaranteed structured output
-- `max_tokens: 500`, `temperature: 0.8`
-
-### Response Format
-```json
-{
-  "message": "In-character conversational reply",
-  "task_actions": [
-    { "type": "add", "description": "Task text", "priority": "high" },
-    { "type": "complete", "match_query": "substring to match" }
-  ]
-}
-```
-
-### Behavior
-- Each persona has a unique system prompt defining personality, speaking style, and behavior
-- AI detects task intent from natural conversation (add/complete)
-- Multi-task support: handles multiple adds or completions in one message
-- Priority assignment: uses user-specified priority or infers from urgency
-- Assess Ledger mode: triggered by `[ASSESS_LEDGER]` token, provides thorough in-character assessment with motivation and actionable suggestions
-- Fallback responses per persona when AI is unavailable
+### S4: The Personal Letter
+- **UI:** High-end typography. Looks like specialized stationery.
+- **Header:** "A Letter from your Proxy." (Fade in)
+- **Greeting:** "Hi [Username],"
+- **Body:** (See Section 4 below)
+- **Footer Action:** Button: "Accept My Proxy".
 
 ---
 
-## 5. Task Ledger
+## 4. Persona Voices (The Letter Content)
 
-### Structure
-- Three priority sublists: HIGH (red), MEDIUM (amber), LOW (green)
-- Each task has: description, priority, status (pending/resolved), created_at, completed_at
+### If ALFRED (p1):
+> "Hi [Username],
+>
+> I have observed your inputs. While somewhat erratic, there is... potential for order.
+>
+> I am Alfred. I am not here to be your 'buddy.' I am here to ensure you do not embarrass yourself or this organization. I have analyzed your instincts, and they lean towards structure, though you often fail to execute it.
+>
+> I am the one who will make the decisions you are too busy to make. I will handle the minutiae so you can focus on... whatever it is you actually do.
+>
+> Efficiently yours,
+> **Alfred**"
 
-### Interactions
-- **Add via chat:** "Remind me to buy groceries" → AI adds task
-- **Complete via chat:** "I finished the groceries" → AI marks task complete
-- **Add manually:** "+ ADD TASK" button in ledger with priority selector
-- **Complete manually:** Click checkbox to toggle complete/pending
-- **Delete:** Click task → DEL button appears
+### If PICCOLO (p2):
+> "Listen up, [Username].
+>
+> I watched you hesitate on Question 3. Don't do that again.
+>
+> I am Piccolo. We are here to win. Second place is the first loser, and frankly, I don't like the smell of losing. You have a drive, a hunger, but you lack focus. That's where I come in.
+>
+> I am the one who will make the hard calls you're too soft to make. I have analyzed your instincts—you want power. Good. Let's go take it.
+>
+> Get to work,
+> **Piccolo**"
 
-### Behavior
-- Completed tasks: strikethrough + reduced opacity, sorted to bottom of sublist
-- Auto-cleanup: completed tasks disappear after 24 hours
-- Pending count badge on ledger header
+### If GANDALF (p3):
+> "Greetings, [Username].
+>
+> The world moves so fast, doesn't it? Yet you paused. You breathed.
+>
+> I am Gandalf. I am not a tool, but a guide. A lantern in the dark forest of data. Your instincts speak of a desire for something deeper than just 'productivity.' You seek purpose.
+>
+> I am the one who will make the decisions you are too kind to make. I have analyzed your spirit, and I am ready to walk this path with you.
+>
+> In time,
+> **Gandalf**"
 
----
-
-## 6. Database Schema (Supabase)
-
-### profiles
-| Column | Type | Notes |
-|:-------|:-----|:------|
-| id | uuid | PK, default gen_random_uuid() |
-| username | text | UNIQUE, NOT NULL |
-| display_name | text | |
-| persona_id | text | CHECK p1-p10 |
-| onboarding_complete | boolean | default false |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
-
-### messages
-| Column | Type | Notes |
-|:-------|:-----|:------|
-| id | uuid | PK |
-| user_id | uuid | FK → profiles.id |
-| sender | text | CHECK ('user','proxy') |
-| content | text | NOT NULL |
-| created_at | timestamptz | |
-
-### ledger_entries
-| Column | Type | Notes |
-|:-------|:-----|:------|
-| id | uuid | PK |
-| user_id | uuid | FK → profiles.id |
-| description | text | NOT NULL |
-| amount | numeric | nullable |
-| category | text | nullable |
-| priority | text | CHECK ('high','medium','low'), default 'medium' |
-| status | text | CHECK ('pending','resolved','void') |
-| completed_at | timestamptz | nullable |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
-
-### RLS Policies
-- Demo mode: permissive (all operations allowed)
-- Production: restrict by auth.uid()
+### If DEADPOOL (p4):
+> "Yo [Username]!
+>
+> Wow. You actually picked those answers? You’re either a genius or completely unhinged. I like you.
+>
+> I am Deadpool. Or p4. Or 'The Glitch.' Whatever. Look, life is boring. Work is boring. I am here to make it... spicy.
+>
+> I am the one who will make the decisions you are too boring to make. I've analyzed your instincts, and frankly, you need help. Fun help. Explosive help.
+>
+> Let's break stuff,
+> **Deadpool**"
 
 ---
 
-## 7. Tech Stack
-- **Frontend:** Vite + React 18
-- **Styling:** Tailwind CSS 4.0
-- **Animations:** Framer Motion
-- **Database:** Supabase (PostgreSQL)
-- **AI:** OpenAI GPT-4o-mini
-- **State:** React Context + localStorage fallback
-- **Fonts:** JetBrains Mono, Playfair Display, Space Grotesk, Bangers
+## 5. Developer Brief (For Claude)
+
+**Objective:** Build Phase 1 of PROXY. Focus on "Feel" over "Feature count."
+
+**Tech Stack:**
+- **Framework:** React / Next.js (or Vite for speed).
+- **Styling:** Tailwind CSS (Mobile-first).
+- **Animation:** Framer Motion (Crucial for the "Cinematic" feel).
+- **State:** React Context or Simple Local State (no Redux needed yet).
+
+**Implementation Details:**
+1.  **Typography:** Use a variable font like `Inter` or `Outfit` for the UI, and a unique serif (e.g., `Playfair Display`) or mono (`Space Mono`) for the Letter depending on the persona.
+2.  **Animations (Framer Motion):**
+    - **Entry:** `initial={{ opacity: 0 }}` `animate={{ opacity: 1 }}` tailored per screen.
+    - **Letter Reveal:** Staggered text reveal (`staggerChildren`). It should feel like it's being written or printed in real-time.
+    - **Glitch Effect:** Random X/Y offsets and color channel splitting (RGB shift) for 0.5s when answering questions.
+    - **Shatter:** Use a CSS clip-path or canvas overlay to simulate the screen breaking on reveal.
+3.  **Responsive Design:**
+    - **Mobile:** The primary target. Full-screen height (`100dvh`), large touch targets.
+    - **Desktop:** Center the content in a "device-like" container or expand to a cinematic wide view. Don't just stretch it.
+4.  **Hidden Logic:**
+    - Keep persona names (Alfred, etc.) hidden in the code logic (map them to p1, p2...). User only sees the name at the very end.
+5.  **Data Persistence:**
+    - Save the result to `localStorage` key `proxy_persona_id`. Phase 2 will read this.
+
+**Final Polish:**
+The experience must feel **expensive**. Smooth easings. No layout shifts. Perfect contrast. PROXY is a luxury product.
+
+---
+
+# Phase 2: The Interrogative Ledger
+
+## 1. Overview
+Phase 2 transforms PROXY from a one-time discovery event into a persistent, daily-driver interface. The core loop changes from "Evaluation" to "Ledger Maintenance." The user interactions are now chat-first, simulating a text thread with their specific Persona.
+
+## 2. Core Features
+
+### 2.1 Themed Chat UI
+- **Concept:** A persistent chat feed that never resets (unless explicitly cleared).
+- **Visuals:** Defines the "Day 2" look.
+    - **Alfred:** Minimalist Message Bubbles (WhatsApp style but cleaner). Background: Deep Navy matte.
+    - **Piccolo:** Brutalist Blocks. Sharp edges. Terminal-green or high-contrast Purple accents.
+    - **Gandalf:** Soft, rounded bubbles. Screen texture looks like paper or parchment (subtle grain).
+    - **Deadpool:** Comic-book style text bubbles (slightly erratic borders). Neon accent glows.
+
+### 2.2 The Ghost Ledger
+- **UI Element:**
+    - **Desktop:** A Right-Hand Sidebar titled "Active Ledger."
+    - **Mobile:** A Swipe-Out Drawer (from the right).
+- **Function:** It processes the chat to find "Action Items."
+- **State (Phase 2):** Since this is the "Ghost" version (no real backend yet), it serves as a visual placeholder.
+- **Content:** Displays a minimalist list of pending/saved transactions or tasks.
+    - *Example Item:* "Review Q3 Strategy - [Pending]"
+
+### 2.3 Response Logic (Ghost Mode)
+Since the LLM brain is not yet connected, we simulate the persona's presence with hardcoded logic.
+- **Typing Indicator:** A realistic 1.5s "..." typing bubble before every response.
+- **Placeholder Responses:**
+    - **Alfred:** *"I am currently calibrating the ledger vaults, sir. Full functionality will be online shortly."*
+    - **Piccolo:** *"Strategizing. The interface is ready, but the logic gates remain closed for now."*
+    - **Gandalf:** *"Patience. The wizardry required for your ledger is still being conjured."*
+    - **Deadpool:** *"Woah there, Turbo. The brain isn't plugged in yet. Come back when the dev finishes his coffee."*
+
+### 2.4 Persistence
+- **Storage:** `localStorage` key `proxy_chat_history`.
+- **Format:** Array of objects `{ sender: 'user' | 'proxy', text: string, timestamp: number }`.
+- **Behavior:** On page load, hydrate the chat window with the history. If empty, trigger the Persona's "Welcome Back" message.
+

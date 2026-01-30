@@ -14,6 +14,7 @@ export const STAGES = {
   REVELATION: 'revelation',
   LETTER: 'letter',
   DASHBOARD: 'dashboard',
+  REFLECTION: 'reflection', // 3-day review screen
 }
 
 export function ProxyProvider({ children }) {
@@ -68,6 +69,38 @@ export function ProxyProvider({ children }) {
     setStage(STAGES.DASHBOARD)
   }
 
+  // Check if 3-day reflection should trigger (after 5pm AND 3+ days since last review)
+  const shouldTriggerReflection = useCallback(() => {
+    if (!profile) return false
+
+    const now = new Date()
+    const hour = now.getHours()
+
+    // Only trigger after 5pm (17:00)
+    if (hour < 17) return false
+
+    // Check days since last review
+    const lastReview = profile.last_review_at ? new Date(profile.last_review_at) : null
+    if (!lastReview) {
+      // First time user - check if they've been active for at least 3 days
+      const createdAt = profile.created_at ? new Date(profile.created_at) : null
+      if (!createdAt) return false
+      const daysSinceCreation = (now - createdAt) / (1000 * 60 * 60 * 24)
+      return daysSinceCreation >= 3
+    }
+
+    const daysSinceReview = (now - lastReview) / (1000 * 60 * 60 * 24)
+    return daysSinceReview >= 3
+  }, [profile])
+
+  // Mark reflection as complete
+  const completeReflection = async () => {
+    if (isSupabaseConfigured() && profile) {
+      await updateProfile({ last_review_at: new Date().toISOString() })
+    }
+    setStage(STAGES.DASHBOARD)
+  }
+
   // Track rejected personas so we cycle through all before repeating
   const rejectedRef = useRef(new Set())
 
@@ -116,6 +149,8 @@ export function ProxyProvider({ children }) {
     addAnswer: (answer) => setAnswers(prev => [...prev, answer]),
     acceptProxy,
     rerollPersona,
+    shouldTriggerReflection,
+    completeReflection,
     resetFlow: () => {
       // Clear localStorage directly to ensure clean state
       localStorage.removeItem('proxy_username')
@@ -125,6 +160,7 @@ export function ProxyProvider({ children }) {
       localStorage.removeItem('proxy_chat_history')
       localStorage.removeItem('proxy_ledger_entries')
       localStorage.removeItem('proxy_user_id')
+      localStorage.removeItem('proxy_tutorial_complete')
 
       // Force reload to reset all state cleanly
       window.location.reload()

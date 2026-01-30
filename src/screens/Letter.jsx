@@ -20,6 +20,11 @@ export function Letter() {
   const primaryColor = persona?.colors.primary || '#0F172A'
   const accentColor = persona?.colors.accent || '#D4AF37'
 
+  // Determine if background is light (for Jessica Pearson p8)
+  const isLightBg = primaryColor === '#FFFFFF' || primaryColor === '#ffffff'
+  const textColor = isLightBg ? '#1a1a1a' : '#ffffff'
+  const mutedTextColor = isLightBg ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)'
+
   // Replace placeholder with actual username
   const greeting = letter?.greeting.replace('[USERNAME]', username) || `Hi ${username},`
 
@@ -35,7 +40,7 @@ export function Letter() {
     <LensFocusPage>
       <div
         className="min-h-screen w-full py-12 px-6 md:px-12 lg:px-20"
-        style={{ backgroundColor: primaryColor }}
+        style={{ backgroundColor: primaryColor, paddingTop: 'max(3rem, env(safe-area-inset-top, 3rem))' }}
       >
         <div className="max-w-2xl mx-auto">
           {/* Header */}
@@ -46,7 +51,8 @@ export function Letter() {
             transition={{ duration: 0.8, delay: 0.3 }}
           >
             <motion.p
-              className="text-white/30 font-mono text-[10px] tracking-[0.4em] uppercase"
+              className="font-mono text-[10px] tracking-[0.4em] uppercase"
+              style={{ color: mutedTextColor }}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
@@ -87,7 +93,8 @@ export function Letter() {
               {letter?.body.map((paragraph, index) => (
                 <motion.p
                   key={index}
-                  className="text-white/80 font-mono text-sm md:text-base leading-relaxed"
+                  className="font-mono text-sm md:text-base leading-relaxed"
+                  style={{ color: isLightBg ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)' }}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
@@ -108,7 +115,7 @@ export function Letter() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 3.2 }}
             >
-              <p className="text-white/50 font-mono text-sm italic mb-2">
+              <p className="font-mono text-sm italic mb-2" style={{ color: mutedTextColor }}>
                 {letter?.signature}
               </p>
               <motion.p
@@ -149,7 +156,11 @@ export function Letter() {
             {/* Reroll persona */}
             <motion.button
               onClick={rerollPersona}
-              className="w-full mt-4 p-3 text-white/30 font-mono text-xs tracking-wider hover:text-white/50 transition-colors"
+              className="w-full mt-4 p-3 font-mono text-xs tracking-wider transition-colors"
+              style={{
+                color: `${accentColor}60`,
+              }}
+              whileHover={{ color: accentColor }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
@@ -165,9 +176,9 @@ export function Letter() {
             animate={{ opacity: showButton ? 0.3 : 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
           >
-            <div className="w-8 h-px bg-white/20" />
-            <span className="text-white/20 font-mono text-[10px] tracking-widest">PROXY</span>
-            <div className="w-8 h-px bg-white/20" />
+            <div className="w-8 h-px" style={{ backgroundColor: isLightBg ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)' }} />
+            <span className="font-mono text-[10px] tracking-widest" style={{ color: isLightBg ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)' }}>PROXY</span>
+            <div className="w-8 h-px" style={{ backgroundColor: isLightBg ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)' }} />
           </motion.div>
         </div>
       </div>

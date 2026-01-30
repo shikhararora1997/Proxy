@@ -60,25 +60,31 @@ export function useLedger() {
     })
   }, [entries])
 
-  // Add entry with priority
-  const addEntry = useCallback(async (description, category = null, amount = null, priority = 'medium') => {
+  // Add entry with priority and due date
+  const addEntry = useCallback(async (description, category = null, amount = null, priority = 'medium', dueAt = null) => {
+    console.log('[useLedger] addEntry called:', { description, priority, dueAt })
     const newEntry = {
       id: crypto.randomUUID(),
       description,
       category,
       amount,
       priority,
+      due_at: dueAt,
       status: 'pending',
       completed_at: null,
       created_at: new Date().toISOString(),
       user_id: profile?.id,
     }
 
-    const updated = [newEntry, ...entries]
-    setEntries(updated)
+    // Use functional update to avoid stale closure issues with multiple rapid calls
+    setEntries(prev => [newEntry, ...prev])
 
     if (!isSupabaseConfigured() || !profile) {
-      saveToLocal(updated)
+      // For localStorage, we need to get latest state
+      setEntries(prev => {
+        saveToLocal(prev)
+        return prev
+      })
       return newEntry
     }
 
@@ -90,20 +96,42 @@ export function useLedger() {
         category,
         amount,
         priority,
+        due_at: dueAt,
         status: 'pending',
       })
       .select()
       .single()
 
     if (error) {
-      console.error('Error adding entry:', error)
-      setEntries(entries)
+      console.error('[useLedger] Error adding entry:', error)
+      // If due_at column doesn't exist, try without it
+      if (error.message?.includes('due_at')) {
+        console.log('[useLedger] Retrying without due_at column')
+        const { data: retryData, error: retryError } = await supabase
+          .from('ledger_entries')
+          .insert({
+            user_id: profile.id,
+            description,
+            category,
+            amount,
+            priority,
+            status: 'pending',
+          })
+          .select()
+          .single()
+        if (!retryError) {
+          setEntries(prev => prev.map(e => e.id === newEntry.id ? retryData : e))
+          return retryData
+        }
+      }
+      // Remove the optimistically added entry on error
+      setEntries(prev => prev.filter(e => e.id !== newEntry.id))
       return null
     }
 
     setEntries(prev => prev.map(e => e.id === newEntry.id ? data : e))
     return data
-  }, [profile, entries, saveToLocal])
+  }, [profile, saveToLocal])
 
   // Complete a task (set resolved + completed_at timestamp)
   const completeEntry = useCallback(async (id) => {
@@ -158,17 +186,141 @@ export function useLedger() {
     return true
   }, [profile, entries, saveToLocal])
 
+  // Update due date for a task
+  const updateDueDate = useCallback(async (id, dueAt) => {
+    const updated = entries.map(e =>
+      e.id === id ? { ...e, due_at: dueAt } : e
+    )
+    setEntries(updated)
+
+    if (!isSupabaseConfigured() || !profile) {
+      saveToLocal(updated)
+      return true
+    }
+
+    const { error } = await supabase
+      .from('ledger_entries')
+      .update({ due_at: dueAt })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error updating due date:', error)
+      setEntries(entries)
+      return false
+    }
+
+    return true
+  }, [profile, entries, saveToLocal])
+
   // Complete a task by fuzzy matching query against pending descriptions
   const completeTaskByQuery = useCallback(async (query) => {
-    const q = query.toLowerCase()
-    const match = entries.find(
-      e => e.status === 'pending' && e.description.toLowerCase().includes(q)
-    )
-    if (match) {
-      return completeEntry(match.id)
+    const q = query.toLowerCase().trim()
+    const pending = entries.filter(e => e.status === 'pending')
+
+    // Score each task based on match quality
+    const scoredTasks = pending.map(e => {
+      const desc = e.description.toLowerCase()
+      let score = 0
+
+      // Exact match = highest score
+      if (desc === q) score = 100
+
+      // Full query contained in description
+      else if (desc.includes(q)) score = 80
+
+      // Description contained in query
+      else if (q.includes(desc)) score = 70
+
+      // Word-based matching
+      else {
+        const queryWords = q.split(/\s+/).filter(w => w.length > 1)
+        const matchedWords = queryWords.filter(w => desc.includes(w))
+        score = (matchedWords.length / queryWords.length) * 60
+      }
+
+      return { entry: e, score }
+    })
+
+    // Get best match with minimum score threshold
+    const bestMatch = scoredTasks
+      .filter(t => t.score >= 30)
+      .sort((a, b) => b.score - a.score)[0]
+
+    if (bestMatch) {
+      console.log('[useLedger] Completing task:', { query, matched: bestMatch.entry.description, score: bestMatch.score })
+      return completeEntry(bestMatch.entry.id)
     }
+
+    console.log('[useLedger] No match found for query:', query)
     return false
   }, [entries, completeEntry])
+
+  // Update an existing task (priority, description, due date)
+  const updateTaskByQuery = useCallback(async (query, updates) => {
+    const q = query.toLowerCase().trim()
+    const pending = entries.filter(e => e.status === 'pending')
+
+    // Score each task based on match quality
+    const scoredTasks = pending.map(e => {
+      const desc = e.description.toLowerCase()
+      let score = 0
+
+      // Exact match = highest score
+      if (desc === q) score = 100
+
+      // Full query contained in description
+      else if (desc.includes(q)) score = 80
+
+      // Description contained in query (e.g., query "call mom task" matches "call mom")
+      else if (q.includes(desc)) score = 70
+
+      // Word-based matching
+      else {
+        const queryWords = q.split(/\s+/).filter(w => w.length > 1)
+        const matchedWords = queryWords.filter(w => desc.includes(w))
+        score = (matchedWords.length / queryWords.length) * 60
+      }
+
+      return { entry: e, score }
+    })
+
+    // Get best match with minimum score threshold
+    const bestMatch = scoredTasks
+      .filter(t => t.score >= 30)
+      .sort((a, b) => b.score - a.score)[0]
+
+    if (!bestMatch) {
+      console.log('[useLedger] No match found for update query:', query)
+      return false
+    }
+
+    const match = bestMatch.entry
+    console.log('[useLedger] Best match for update:', { query, matched: match.description, score: bestMatch.score })
+
+    console.log('[useLedger] Updating task:', { query, matched: match.description, updates })
+
+    const updatedEntry = { ...match, ...updates }
+    const updatedEntries = entries.map(e => e.id === match.id ? updatedEntry : e)
+    setEntries(updatedEntries)
+
+    if (!isSupabaseConfigured() || !profile) {
+      saveToLocal(updatedEntries)
+      return true
+    }
+
+    const { error } = await supabase
+      .from('ledger_entries')
+      .update(updates)
+      .eq('id', match.id)
+
+    if (error) {
+      console.error('[useLedger] Error updating task:', error)
+      setEntries(entries)
+      return false
+    }
+
+    return true
+  }, [profile, entries, saveToLocal])
 
   // Update entry status (legacy)
   const updateStatus = useCallback(async (id, status) => {
@@ -226,6 +378,36 @@ export function useLedger() {
     return true
   }, [profile, entries, saveToLocal])
 
+  // Purge all completed tasks (used after 3-day reflection)
+  const purgeCompleted = useCallback(async () => {
+    const completedIds = entries.filter(e => e.status === 'resolved').map(e => e.id)
+    if (completedIds.length === 0) return true
+
+    const updated = entries.filter(e => e.status !== 'resolved')
+    setEntries(updated)
+
+    if (!isSupabaseConfigured() || !profile) {
+      saveToLocal(updated)
+      return true
+    }
+
+    // Delete all completed entries from Supabase
+    const { error } = await supabase
+      .from('ledger_entries')
+      .delete()
+      .eq('user_id', profile.id)
+      .eq('status', 'resolved')
+
+    if (error) {
+      console.error('[useLedger] Error purging completed:', error)
+      setEntries(entries) // Rollback
+      return false
+    }
+
+    console.log(`[useLedger] Purged ${completedIds.length} completed tasks`)
+    return true
+  }, [profile, entries, saveToLocal])
+
   return {
     entries,
     visibleEntries,
@@ -233,10 +415,13 @@ export function useLedger() {
     addEntry,
     completeEntry,
     uncompleteEntry,
+    updateDueDate,
     completeTaskByQuery,
+    updateTaskByQuery,
     resolveEntry,
     voidEntry,
     deleteEntry,
+    purgeCompleted,
     refetch: fetchEntries,
     pendingCount: entries.filter(e => e.status === 'pending').length,
   }

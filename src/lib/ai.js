@@ -55,7 +55,7 @@ export async function getAIResponse(personaId, userMessage, chatHistory = [], le
 
     try {
       const parsed = JSON.parse(content)
-      console.log('[AI Raw Response]', JSON.stringify(parsed, null, 2))
+      console.log('[AI Response]', { message: parsed.message?.substring(0, 50), task_actions: parsed.task_actions })
       // Support: task_actions array, legacy task_action single, or task_action array
       let actions = []
       if (Array.isArray(parsed.task_actions)) {
@@ -148,4 +148,60 @@ function getFallbackResponse(personaId) {
  */
 export function isAIConfigured() {
   return !!import.meta.env.VITE_OPENAI_API_KEY
+}
+
+/**
+ * Get 3-day reflection analysis from AI
+ *
+ * @param {string} personaId - The persona ID (p1-p10)
+ * @param {object} stats - Statistics about the last 3 days
+ * @param {string} username - User's display name
+ * @returns {Promise<{message: string, stats: object}>}
+ */
+export async function getReflectionAnalysis(personaId, stats, username) {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+
+  if (!apiKey) {
+    return {
+      message: 'Analysis unavailable in offline mode.',
+      stats,
+    }
+  }
+
+  const { buildReflectionPrompt } = await import('../config/prompts')
+  const systemPrompt = buildReflectionPrompt(personaId, stats, username)
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: 'Provide your 3-day reflection assessment now.' }
+        ],
+        max_tokens: 1500, // Longer response for detailed analysis
+        temperature: 0.8,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('API request failed')
+    }
+
+    const data = await response.json()
+    const message = data.choices[0]?.message?.content || 'Analysis unavailable.'
+
+    return { message, stats }
+  } catch (error) {
+    console.error('Reflection analysis failed:', error)
+    return {
+      message: 'I encountered an error while analyzing your performance. Please try again.',
+      stats,
+    }
+  }
 }

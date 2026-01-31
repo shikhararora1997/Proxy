@@ -336,13 +336,26 @@ CRITICAL RULES:
   Response: { "message": "...", "task_actions": [{"type":"update","match_query":"groceries","priority":"high"}] }
   User: "change the call mom deadline to friday"
   Response: { "message": "...", "task_actions": [{"type":"update","match_query":"call mom","due_at":"2026-01-31T18:00:00Z"}] }
-- DUE DATES: The "due_at" field is an ISO 8601 timestamp. Current time is ${new Date().toISOString()}.
-  - If user says "in X hours" or "in X minutes", ADD that time to current timestamp. Example: "in 2 hours" from now = ${new Date(Date.now() + 2*60*60*1000).toISOString()}
-  - If user says "by friday" or "by tomorrow", calculate the actual date at 6pm and set due_at
-  - If user says "today", set due_at to today at 6pm
-  - If user does NOT specify a deadline, DEFAULT to 3 HOURS from now: ${new Date(Date.now() + 3*60*60*1000).toISOString()}
-  - ALWAYS include due_at for "add" actions. Never leave it null or omit it.
-  - IMPORTANT: For hour-based deadlines, calculate from CURRENT TIME, not from midnight.
+- DUE DATES: The "due_at" field is an ISO 8601 timestamp.
+  CURRENT TIME REFERENCE (use these for calculations):
+  - Right now: ${new Date().toISOString()}
+  - In 1 hour: ${new Date(Date.now() + 1*60*60*1000).toISOString()}
+  - In 3 hours: ${new Date(Date.now() + 3*60*60*1000).toISOString()}
+  - In 6 hours: ${new Date(Date.now() + 6*60*60*1000).toISOString()}
+  - Today at midnight: ${new Date(new Date().setHours(23,59,0,0)).toISOString()}
+  - Tomorrow morning (9am): ${new Date(Date.now() + 24*60*60*1000).toISOString().replace(/T\d{2}/, 'T09')}
+  - Tomorrow noon (12pm): ${new Date(Date.now() + 24*60*60*1000).toISOString().replace(/T\d{2}/, 'T12')}
+  - Tomorrow evening (6pm): ${new Date(Date.now() + 24*60*60*1000).toISOString().replace(/T\d{2}/, 'T18')}
+  - In 2 days: ${new Date(Date.now() + 2*24*60*60*1000).toISOString()}
+  - In 1 week: ${new Date(Date.now() + 7*24*60*60*1000).toISOString()}
+
+  RULES:
+  - "by noon tomorrow" or "tomorrow noon" = use Tomorrow noon timestamp above
+  - "by tomorrow" or "tomorrow" without time = use Tomorrow evening (6pm)
+  - "in X hours" = add X hours to "Right now"
+  - "today" = use Today at midnight
+  - If NO deadline specified = use "In 3 hours" as default
+  - ALWAYS include due_at for "add" actions. Never omit it.
 - If the user says they finished/completed/done with MULTIPLE tasks, include a SEPARATE "complete" action for EACH:
   User: "I finished washing dishes and having dinner"
   Response: { "message": "...", "task_actions": [{"type":"complete","match_query":"wash dishes"},{"type":"complete","match_query":"dinner"}] }

@@ -59,32 +59,31 @@ export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
     return new Date(entry.due_at) < new Date()
   }
 
-  // Group by priority, with completed items sorted to bottom of each group
-  // Overdue tasks always go to HIGH priority
-  const sortGroup = (items) => {
-    const pending = items.filter(e => e.status === 'pending')
-    const completed = items.filter(e => e.status === 'resolved')
-    // Sort pending: overdue first, then by due date
-    pending.sort((a, b) => {
+  // Separate pending and completed tasks
+  const pendingEntries = visibleEntries.filter(e => e.status === 'pending')
+  const completedEntries = visibleEntries.filter(e => e.status === 'resolved')
+
+  // Sort pending: overdue first
+  const sortByOverdue = (items) => {
+    return [...items].sort((a, b) => {
       const aOverdue = isOverdue(a)
       const bOverdue = isOverdue(b)
       if (aOverdue && !bOverdue) return -1
       if (!aOverdue && bOverdue) return 1
       return 0
     })
-    return [...pending, ...completed]
   }
 
   // Overdue tasks go to HIGH regardless of original priority
-  const overdueEntries = visibleEntries.filter(e => isOverdue(e))
-  const nonOverdueEntries = visibleEntries.filter(e => !isOverdue(e))
+  const overdueEntries = pendingEntries.filter(e => isOverdue(e))
+  const nonOverdueEntries = pendingEntries.filter(e => !isOverdue(e))
 
-  const highTasks = sortGroup([
+  const highTasks = sortByOverdue([
     ...overdueEntries,
     ...nonOverdueEntries.filter(e => e.priority === 'high')
   ])
-  const mediumTasks = sortGroup(nonOverdueEntries.filter(e => e.priority === 'medium' || !e.priority))
-  const lowTasks = sortGroup(nonOverdueEntries.filter(e => e.priority === 'low'))
+  const mediumTasks = sortByOverdue(nonOverdueEntries.filter(e => e.priority === 'medium' || !e.priority))
+  const lowTasks = sortByOverdue(nonOverdueEntries.filter(e => e.priority === 'low'))
 
   return (
     <>
@@ -193,6 +192,16 @@ export function ActiveLedger({ personaId, isOpen, onClose, ledger }) {
                 onUpdateDueDate={updateDueDate}
                 onDelete={deleteEntry}
               />
+
+              {/* Completed section */}
+              {completedEntries.length > 0 && (
+                <CompletedSection
+                  tasks={completedEntries}
+                  theme={theme}
+                  onUncomplete={uncompleteEntry}
+                  onDelete={deleteEntry}
+                />
+              )}
 
               {visibleEntries.length === 0 && (
                 <p
@@ -531,6 +540,108 @@ function TaskItem({ entry, theme, index, onComplete, onUncomplete, onUpdateDueDa
         </AnimatePresence>
       </div>
     </motion.div>
+  )
+}
+
+function CompletedSection({ tasks, theme, onUncomplete, onDelete }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  if (tasks.length === 0) return null
+
+  return (
+    <div className="mb-5 mt-4 pt-4 border-t" style={{ borderColor: `${theme.accent}15` }}>
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 mb-2 w-full text-left"
+      >
+        <div
+          className="w-2 h-2 rounded-full"
+          style={{ backgroundColor: '#6B7280' }}
+        />
+        <p
+          className={`${theme.font.chat} text-[10px] tracking-wider`}
+          style={{ color: theme.text.muted }}
+        >
+          COMPLETED
+        </p>
+        <span
+          className={`${theme.font.chat} text-[10px]`}
+          style={{ color: theme.text.muted }}
+        >
+          ({tasks.length})
+        </span>
+        <motion.span
+          className="ml-auto text-[10px]"
+          style={{ color: theme.text.muted }}
+          animate={{ rotate: isExpanded ? 180 : 0 }}
+        >
+          ▼
+        </motion.span>
+      </button>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            className="space-y-1.5"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {tasks.map((entry, index) => (
+              <motion.div
+                key={entry.id}
+                className="flex items-center gap-2 p-2 rounded"
+                style={{
+                  backgroundColor: `${theme.background}50`,
+                  opacity: 0.6,
+                }}
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 0.6, x: 0 }}
+                transition={{ delay: index * 0.02 }}
+              >
+                {/* Checked checkbox */}
+                <button
+                  onClick={() => onUncomplete(entry.id)}
+                  className="flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center"
+                  style={{
+                    borderColor: '#22C55E',
+                    backgroundColor: '#22C55E20',
+                  }}
+                >
+                  <CheckIcon />
+                </button>
+
+                {/* Task description with strikethrough */}
+                <span
+                  className={`${theme.font.chat} text-xs flex-1 line-through`}
+                  style={{ color: theme.text.muted }}
+                >
+                  {entry.description}
+                </span>
+
+                {/* Delete button */}
+                <button
+                  onClick={() => onDelete(entry.id)}
+                  className="flex-shrink-0 p-1 rounded text-[10px] opacity-50 hover:opacity-100 transition-opacity"
+                  style={{ color: '#EF4444' }}
+                >
+                  ✕
+                </button>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="3">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
   )
 }
 

@@ -346,7 +346,7 @@ CRITICAL RULES:
 - If the user says they finished/completed/done with MULTIPLE tasks, include a SEPARATE "complete" action for EACH:
   User: "I finished washing dishes and having dinner"
   Response: { "message": "...", "task_actions": [{"type":"complete","match_query":"wash dishes"},{"type":"complete","match_query":"dinner"}] }
-- If the user says "mark all tasks complete", include a "complete" action for EVERY pending task in the task list above.
+- If the user says "mark all tasks complete" or "complete all" or "I finished everything", include a "complete" action for EVERY pending task in the task list above. You MUST include one complete action per task - do not skip any.
 - If the user specifies a priority (high, medium, low, urgent, important), use that. Otherwise, assign based on urgency/importance.
 - For normal conversation with no task intent, use an empty array: "task_actions": []
 - The "message" field is ALWAYS your in-character conversational reply.

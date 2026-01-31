@@ -136,13 +136,17 @@ export function useLedger() {
   // Complete a task (set resolved + completed_at timestamp)
   const completeEntry = useCallback(async (id) => {
     const now = new Date().toISOString()
-    const updated = entries.map(e =>
+
+    // Use functional update to avoid stale closure
+    setEntries(prev => prev.map(e =>
       e.id === id ? { ...e, status: 'resolved', completed_at: now } : e
-    )
-    setEntries(updated)
+    ))
 
     if (!isSupabaseConfigured() || !profile) {
-      saveToLocal(updated)
+      setEntries(prev => {
+        saveToLocal(prev)
+        return prev
+      })
       return true
     }
 
@@ -153,12 +157,48 @@ export function useLedger() {
 
     if (error) {
       console.error('Error completing entry:', error)
-      setEntries(entries)
+      // Refetch on error instead of using stale state
+      fetchEntries()
       return false
     }
 
     return true
-  }, [profile, entries, saveToLocal])
+  }, [profile, saveToLocal, fetchEntries])
+
+  // Complete multiple tasks at once (for "complete all" commands)
+  const completeMultipleEntries = useCallback(async (ids) => {
+    if (ids.length === 0) return true
+
+    const now = new Date().toISOString()
+
+    // Update all at once in state
+    setEntries(prev => prev.map(e =>
+      ids.includes(e.id) ? { ...e, status: 'resolved', completed_at: now } : e
+    ))
+
+    if (!isSupabaseConfigured() || !profile) {
+      setEntries(prev => {
+        saveToLocal(prev)
+        return prev
+      })
+      return true
+    }
+
+    // Update all in database
+    const { error } = await supabase
+      .from('ledger_entries')
+      .update({ status: 'resolved', completed_at: now })
+      .eq('user_id', profile.id)
+      .in('id', ids)
+
+    if (error) {
+      console.error('Error completing multiple entries:', error)
+      fetchEntries()
+      return false
+    }
+
+    return true
+  }, [profile, saveToLocal, fetchEntries])
 
   // Uncomplete a task (revert to pending)
   const uncompleteEntry = useCallback(async (id) => {
@@ -408,12 +448,22 @@ export function useLedger() {
     return true
   }, [profile, entries, saveToLocal])
 
+  // Complete all pending tasks at once
+  const completeAllTasks = useCallback(async () => {
+    const pendingIds = entries.filter(e => e.status === 'pending').map(e => e.id)
+    if (pendingIds.length === 0) return true
+    console.log(`[useLedger] Completing all ${pendingIds.length} tasks`)
+    return completeMultipleEntries(pendingIds)
+  }, [entries, completeMultipleEntries])
+
   return {
     entries,
     visibleEntries,
     loading,
     addEntry,
     completeEntry,
+    completeMultipleEntries,
+    completeAllTasks,
     uncompleteEntry,
     updateDueDate,
     completeTaskByQuery,
@@ -424,5 +474,6 @@ export function useLedger() {
     purgeCompleted,
     refetch: fetchEntries,
     pendingCount: entries.filter(e => e.status === 'pending').length,
+    completedCount: entries.filter(e => e.status === 'resolved').length,
   }
 }

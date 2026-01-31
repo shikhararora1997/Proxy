@@ -38,7 +38,7 @@ export function Dashboard() {
   } = useMessages()
 
   const ledger = useLedger()
-  const { entries: ledgerEntries, addEntry, completeTaskByQuery, updateTaskByQuery } = ledger
+  const { entries: ledgerEntries, addEntry, completeTaskByQuery, updateTaskByQuery, completeAllTasks } = ledger
 
   const [isTyping, setIsTyping] = useState(false)
   const [ledgerOpen, setLedgerOpen] = useState(window.innerWidth >= 768)
@@ -120,19 +120,30 @@ export function Dashboard() {
 
       // Handle task actions (array of add/complete/update)
       if (response.task_actions && response.task_actions.length > 0) {
-        for (const action of response.task_actions) {
-          const { type, description, priority, match_query, due_at } = action
-          if (type === 'add' && description) {
-            await addEntry(description, null, null, priority || 'medium', due_at || null)
-          } else if (type === 'complete' && match_query) {
-            await completeTaskByQuery(match_query)
-          } else if (type === 'update' && match_query) {
-            // Build updates object from provided fields
-            const updates = {}
-            if (priority) updates.priority = priority
-            if (due_at) updates.due_at = due_at
-            if (description) updates.description = description
-            await updateTaskByQuery(match_query, updates)
+        // Check if this is a "complete all" scenario (multiple complete actions)
+        const completeActions = response.task_actions.filter(a => a.type === 'complete')
+        const pendingCount = ledgerEntries.filter(e => e.status === 'pending').length
+
+        // If completing most/all tasks, use batch complete
+        if (completeActions.length >= 3 && completeActions.length >= pendingCount * 0.7) {
+          console.log('[Dashboard] Detected "complete all" - using batch complete')
+          await completeAllTasks()
+        } else {
+          // Process actions individually
+          for (const action of response.task_actions) {
+            const { type, description, priority, match_query, due_at } = action
+            if (type === 'add' && description) {
+              await addEntry(description, null, null, priority || 'medium', due_at || null)
+            } else if (type === 'complete' && match_query) {
+              await completeTaskByQuery(match_query)
+            } else if (type === 'update' && match_query) {
+              // Build updates object from provided fields
+              const updates = {}
+              if (priority) updates.priority = priority
+              if (due_at) updates.due_at = due_at
+              if (description) updates.description = description
+              await updateTaskByQuery(match_query, updates)
+            }
           }
         }
       }
@@ -142,7 +153,7 @@ export function Dashboard() {
     } finally {
       setIsTyping(false)
     }
-  }, [addUserMessage, addProxyMessage, personaId, messages, ledgerEntries, addEntry, completeTaskByQuery, updateTaskByQuery])
+  }, [addUserMessage, addProxyMessage, personaId, messages, ledgerEntries, addEntry, completeTaskByQuery, updateTaskByQuery, completeAllTasks])
 
   // Handle assess ledger (no user input, sends special token)
   const handleAssess = useCallback(async () => {

@@ -336,26 +336,31 @@ CRITICAL RULES:
   Response: { "message": "...", "task_actions": [{"type":"update","match_query":"groceries","priority":"high"}] }
   User: "change the call mom deadline to friday"
   Response: { "message": "...", "task_actions": [{"type":"update","match_query":"call mom","due_at":"2026-01-31T18:00:00Z"}] }
-- DUE DATES: The "due_at" field is an ISO 8601 timestamp.
-  CURRENT TIME REFERENCE (use these for calculations):
-  - Right now: ${new Date().toISOString()}
-  - In 1 hour: ${new Date(Date.now() + 1*60*60*1000).toISOString()}
-  - In 3 hours: ${new Date(Date.now() + 3*60*60*1000).toISOString()}
-  - In 6 hours: ${new Date(Date.now() + 6*60*60*1000).toISOString()}
-  - Today at midnight: ${new Date(new Date().setHours(23,59,0,0)).toISOString()}
-  - Tomorrow morning (9am): ${new Date(Date.now() + 24*60*60*1000).toISOString().replace(/T\d{2}/, 'T09')}
-  - Tomorrow noon (12pm): ${new Date(Date.now() + 24*60*60*1000).toISOString().replace(/T\d{2}/, 'T12')}
-  - Tomorrow evening (6pm): ${new Date(Date.now() + 24*60*60*1000).toISOString().replace(/T\d{2}/, 'T18')}
-  - In 2 days: ${new Date(Date.now() + 2*24*60*60*1000).toISOString()}
-  - In 1 week: ${new Date(Date.now() + 7*24*60*60*1000).toISOString()}
+- DUE DATES: The "due_at" field MUST be a FULL ISO 8601 timestamp string.
+  NEVER output shorthand like "2d", "tomorrow", "1h". ALWAYS output a complete timestamp.
 
-  RULES:
-  - "by noon tomorrow" or "tomorrow noon" = use Tomorrow noon timestamp above
-  - "by tomorrow" or "tomorrow" without time = use Tomorrow evening (6pm)
-  - "in X hours" = add X hours to "Right now"
-  - "today" = use Today at midnight
-  - If NO deadline specified = use "In 3 hours" as default
-  - ALWAYS include due_at for "add" actions. Never omit it.
+  COPY THESE EXACT TIMESTAMPS for your due_at values:
+  - Right now: "${new Date().toISOString()}"
+  - In 1 hour: "${new Date(Date.now() + 1*60*60*1000).toISOString()}"
+  - In 3 hours: "${new Date(Date.now() + 3*60*60*1000).toISOString()}"
+  - In 6 hours: "${new Date(Date.now() + 6*60*60*1000).toISOString()}"
+  - Today end of day: "${(() => { const d = new Date(); d.setHours(23, 59, 0, 0); return d.toISOString(); })()}"
+  - Tomorrow 9am: "${(() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d.toISOString(); })()}"
+  - Tomorrow noon (12pm): "${(() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(12, 0, 0, 0); return d.toISOString(); })()}"
+  - Tomorrow 6pm: "${(() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(18, 0, 0, 0); return d.toISOString(); })()}"
+  - In 2 days: "${new Date(Date.now() + 2*24*60*60*1000).toISOString()}"
+  - In 1 week: "${new Date(Date.now() + 7*24*60*60*1000).toISOString()}"
+
+  MATCHING RULES (use EXACT timestamps from above):
+  - "tomorrow noon" / "by noon tomorrow" / "tomorrow 12pm" → Copy the "Tomorrow noon (12pm)" timestamp
+  - "tomorrow morning" / "tomorrow 9am" → Copy the "Tomorrow 9am" timestamp
+  - "tomorrow" / "by tomorrow" (no time) → Copy the "Tomorrow 6pm" timestamp
+  - "today" / "end of day" → Copy the "Today end of day" timestamp
+  - "in X hours" → Calculate: add X hours to "Right now"
+  - No deadline mentioned → Copy the "In 3 hours" timestamp
+
+  CRITICAL: due_at MUST look like "2026-01-31T12:00:00.000Z" - a full ISO string with year, month, day, time, and Z.
+  NEVER output "2d", "tomorrow", or any shorthand. ALWAYS a full timestamp string.
 - If the user says they finished/completed/done with MULTIPLE tasks, include a SEPARATE "complete" action for EACH:
   User: "I finished washing dishes and having dinner"
   Response: { "message": "...", "task_actions": [{"type":"complete","match_query":"wash dishes"},{"type":"complete","match_query":"dinner"}] }

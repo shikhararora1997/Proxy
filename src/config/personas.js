@@ -87,6 +87,38 @@ export const PERSONAS = {
   },
 }
 
+/**
+ * 5D Personality Vector Coordinates
+ *
+ * Axes (0-100):
+ * [0] Logic (100) ↔ Intuition (0)
+ * [1] Discipline (100) ↔ Chaos (0)
+ * [2] Visibility (100) ↔ Stealth (0)
+ * [3] Authority (100) ↔ Service (0)
+ * [4] Innovation (100) ↔ Tradition (0)
+ */
+export const PERSONA_VECTORS = {
+  p1: [70, 95, 15, 20, 30],   // Alfred - disciplined servant, stealthy
+  p2: [100, 85, 60, 75, 70],  // Sherlock - pure logic, analytical
+  p3: [80, 95, 20, 85, 60],   // Batman - tactical, authoritative, shadowy
+  p4: [85, 80, 10, 50, 50],   // Black Widow - precise, stealthy
+  p5: [40, 60, 50, 55, 40],   // Gandalf - intuitive, balanced, traditional
+  p6: [85, 100, 80, 100, 30], // Thanos - disciplined authority, traditional
+  p7: [35, 10, 70, 65, 95],   // Loki - chaotic, innovative, visible
+  p8: [75, 85, 90, 95, 50],   // Jessica Pearson - visible authority
+  p9: [80, 40, 100, 60, 100], // Tony Stark - visible, innovative, less disciplined
+  p10: [50, 70, 20, 45, 20],  // Yoda - balanced, stealthy, traditional
+}
+
+// Axis labels for UI
+export const VECTOR_AXES = [
+  { id: 'logic', label: 'Logic vs Intuition', short: 'Analytical', left: 'Intuition', right: 'Logic' },
+  { id: 'discipline', label: 'Discipline vs Chaos', short: 'Order', left: 'Chaos', right: 'Discipline' },
+  { id: 'visibility', label: 'Visibility vs Stealth', short: 'Presence', left: 'Stealth', right: 'Visible' },
+  { id: 'authority', label: 'Authority vs Service', short: 'Power', left: 'Service', right: 'Authority' },
+  { id: 'innovation', label: 'Innovation vs Tradition', short: 'Method', left: 'Tradition', right: 'Innovation' },
+]
+
 // Hidden until revelation
 export const PERSONA_NAMES = {
   p1: 'Alfred',

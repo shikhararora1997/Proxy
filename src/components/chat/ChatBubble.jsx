@@ -3,12 +3,18 @@ import { THEMES } from '../../config/themes'
 
 /**
  * Parse markdown-style bold (**text**) into JSX
+ * Handles multi-line text and nested content
  */
 function parseMarkdownBold(text) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  if (!text) return text
+
+  // Match **anything** including newlines (non-greedy)
+  const parts = text.split(/(\*\*[\s\S]*?\*\*)/g)
+
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>
+      const content = part.slice(2, -2)
+      return <strong key={i} className="font-bold">{content}</strong>
     }
     return part
   })

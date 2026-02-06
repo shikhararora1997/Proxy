@@ -2,6 +2,19 @@ import { motion } from 'framer-motion'
 import { THEMES } from '../../config/themes'
 
 /**
+ * Parse markdown-style bold (**text**) into JSX
+ */
+function parseMarkdownBold(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>
+    }
+    return part
+  })
+}
+
+/**
  * Chat bubble component styled per persona theme
  */
 export function ChatBubble({ message, personaId, isLatest = false }) {
@@ -35,7 +48,7 @@ export function ChatBubble({ message, personaId, isLatest = false }) {
         style={bubbleStyle}
       >
         <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
-          {message.text}
+          {parseMarkdownBold(message.text)}
         </p>
         <p
           className="text-[10px] mt-2 opacity-50"

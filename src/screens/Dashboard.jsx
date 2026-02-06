@@ -222,6 +222,7 @@ export function Dashboard() {
           style={{
             borderColor: `${theme.accent}20`,
             backgroundColor: theme.background,
+            paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
           }}
         >
           <div className="flex items-center gap-3">

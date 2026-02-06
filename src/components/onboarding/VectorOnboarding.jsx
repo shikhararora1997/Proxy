@@ -69,7 +69,10 @@ export function VectorOnboarding({ onComplete }) {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 overflow-hidden">
+    <div
+      className="min-h-screen bg-black flex flex-col items-center justify-center p-4 overflow-hidden"
+      style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+    >
       <AnimatePresence mode="wait">
         {phase === PHASES.CALIBRATION ? (
           <motion.div

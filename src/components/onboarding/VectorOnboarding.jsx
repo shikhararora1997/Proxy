@@ -7,15 +7,23 @@
 import { useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RadarChart } from './RadarChart'
+import { MatchReveal } from './MatchReveal'
 import { VECTOR_AXES, PERSONAS } from '../../config/personas'
 import { getTopMatches } from '../../lib/vectorMatch'
 
 // Default starting position (center of all axes)
 const DEFAULT_VECTOR = [50, 50, 50, 50, 50]
 
+// Phases: calibration → convergence → reveal
+const PHASES = {
+  CALIBRATION: 'calibration',
+  CONVERGENCE: 'convergence',
+  REVEAL: 'reveal',
+}
+
 export function VectorOnboarding({ onComplete }) {
   const [userVector, setUserVector] = useState(DEFAULT_VECTOR)
-  const [isLocking, setIsLocking] = useState(false)
+  const [phase, setPhase] = useState(PHASES.CALIBRATION)
 
   // Calculate top 3 matches in real-time
   const topMatches = useMemo(() => {
@@ -33,11 +41,16 @@ export function VectorOnboarding({ onComplete }) {
 
   // Handle lock-in
   const handleLockIn = async () => {
-    setIsLocking(true)
-    // Trigger the convergence animation, then complete
+    setPhase(PHASES.CONVERGENCE)
+    // After convergence animation, show reveal
     setTimeout(() => {
-      onComplete(topMatches[0].personaId)
+      setPhase(PHASES.REVEAL)
     }, 1500)
+  }
+
+  // Handle continue from reveal to Letter
+  const handleContinue = () => {
+    onComplete(topMatches[0].personaId)
   }
 
   // Get persona color (for secret display)
@@ -45,10 +58,20 @@ export function VectorOnboarding({ onComplete }) {
     return PERSONAS[personaId]?.colors?.accent || '#666'
   }
 
+  // Show reveal screen
+  if (phase === PHASES.REVEAL) {
+    return (
+      <MatchReveal
+        userVector={userVector}
+        onContinue={handleContinue}
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 overflow-hidden">
       <AnimatePresence mode="wait">
-        {!isLocking ? (
+        {phase === PHASES.CALIBRATION ? (
           <motion.div
             key="onboarding"
             className="w-full max-w-lg"
@@ -146,12 +169,12 @@ export function VectorOnboarding({ onComplete }) {
               </button>
             </motion.div>
           </motion.div>
-        ) : (
+        ) : phase === PHASES.CONVERGENCE ? (
           <ConvergenceAnimation
             key="convergence"
             winningColor={getPersonaColor(topMatches[0].personaId)}
           />
-        )}
+        ) : null}
       </AnimatePresence>
     </div>
   )

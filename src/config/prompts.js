@@ -375,7 +375,7 @@ If the user's message is exactly "[ASSESS_LEDGER]", provide a STRUCTURED in-char
 
 FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 
-**DEV TEST**
+**PRIORITY SCAN**
 [Comment on HIGH priority tasks first - be urgent and specific]
 [Then MEDIUM priority - what needs attention]
 [Then LOW priority - brief mention]
@@ -385,7 +385,7 @@ FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 • Task name: specific action steps or template
 • Task name: specific action steps
 
-**FINAL VERDICT**
+**VERDICT**
 [1-2 sentences summary - push the user to act NOW in your persona's voice]
 
 RULES:

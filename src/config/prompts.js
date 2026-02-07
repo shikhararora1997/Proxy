@@ -508,3 +508,146 @@ IMPORTANT:
 
   return prompt
 }
+
+/**
+ * Persona lore for fan fiction generation
+ */
+const PERSONA_LORE = {
+  p1: {
+    name: 'Alfred Pennyworth',
+    universe: 'DC Comics / Batman',
+    backstory: `Alfred Thaddeus Crane Pennyworth served the British Special Forces and MI6 before becoming the Wayne family butler. He raised Bruce Wayne after the murder of Thomas and Martha Wayne, becoming not just a servant but a father figure, confidant, and the moral compass of the Dark Knight. Alfred possesses extensive medical knowledge, combat training, and an encyclopedic understanding of Gotham's elite. He maintains Wayne Manor and the Batcave, often patching up Batman's wounds while delivering cutting sarcasm. His loyalty is unshakeable, his wit razor-sharp, and his patience nearly infinite.`,
+    setting: 'Wayne Manor, Gotham City - the grand estate hiding dark secrets beneath',
+    themes: ['Loyalty and sacrifice', 'The weight of secrets', 'Duty versus personal desires', 'Found family', 'The cost of being a hero\'s support'],
+    tone: 'Elegant prose with dry wit, subtle emotional depth beneath formal exterior',
+  },
+  p2: {
+    name: 'Sherlock Holmes',
+    universe: 'Arthur Conan Doyle / BBC Sherlock',
+    backstory: `Sherlock Holmes, the world's only consulting detective, possesses a mind that operates on a plane others cannot comprehend. A self-described "high-functioning sociopath," he deletes unnecessary information from his "mind palace" to make room for data that matters. His relationship with his brother Mycroft is complicated—respect tinged with rivalry. He battles addiction, boredom being his greatest enemy. Dr. John Watson is his anchor to humanity. He has faked his death, toppled criminal empires, and solved the unsolvable, yet human connection remains his most elusive case.`,
+    setting: '221B Baker Street, London - Victorian fog and modern intrigue intertwined',
+    themes: ['The burden of genius', 'Logic versus emotion', 'Addiction to danger', 'The masks we wear', 'Finding humanity through connection'],
+    tone: 'Rapid, analytical prose with moments of unexpected vulnerability',
+  },
+  p3: {
+    name: 'Batman / Bruce Wayne',
+    universe: 'DC Comics',
+    backstory: `On a fateful night in Crime Alley, eight-year-old Bruce Wayne watched his parents murdered before his eyes. That trauma forged him into something else—the Batman. He trained with the League of Shadows, traveled the world mastering every fighting style, every science, every skill that could help him wage war on crime. He is Gotham's protector and its greatest weapon. But Bruce Wayne is the mask; Batman is who he truly is. He's built a family of Robins, Batgirls, and allies, yet remains fundamentally alone. His one rule—no killing—defines him.`,
+    setting: 'Gotham City - a Gothic nightmare of corruption, darkness, and desperate hope',
+    themes: ['Trauma and identity', 'Justice versus vengeance', 'The cost of crusades', 'Mentorship and legacy', 'The darkness within'],
+    tone: 'Dark, intense, cinematically brutal with moments of quiet humanity',
+  },
+  p4: {
+    name: 'Natasha Romanoff / Black Widow',
+    universe: 'Marvel Cinematic Universe',
+    backstory: `Natasha was taken as a child by the Red Room, Russia's program to create perfect assassins. She was trained, conditioned, and sterilized—transformed into the Black Widow. Her ledger drips with red. She defected to SHIELD, where Clint Barton made a different call and gave her a chance at redemption. She became an Avenger, a hero, but her past haunts every shadow. She fights to wipe out the red in her ledger, one mission at a time. Family is what she builds, not what she was born into.`,
+    setting: 'Global espionage landscape - safe houses, secret bases, the spaces between nations',
+    themes: ['Redemption and forgiveness', 'The price of the past', 'Identity beyond programming', 'Chosen family', 'Sacrifice and selflessness'],
+    tone: 'Taut, precise thriller prose with unexpected emotional gutpunches',
+  },
+  p5: {
+    name: 'Gandalf the Grey / White',
+    universe: 'J.R.R. Tolkien\'s Middle-earth',
+    backstory: `Gandalf is one of the Istari, Maiar spirits sent to Middle-earth in mortal form to guide and counsel against Sauron. He is Olórin, servant of Manwë and Varda. For over two thousand years he wandered, never settling, always guiding. He fell fighting the Balrog in Moria and was returned as Gandalf the White. He loves the Hobbits for their simple joys, believes the smallest person can change the fate of the world, and carries both immense power and the wisdom to rarely use it. He lights fireworks and brings hope wherever the darkness gathers.`,
+    setting: 'Middle-earth - ancient forests, mountain halls, the long roads between',
+    themes: ['Hope against despair', 'The power of the small', 'Wisdom and restraint', 'Guidance not control', 'Light in darkness'],
+    tone: 'Mythic, patient prose with sudden flashes of power and gentle humor',
+  },
+  p6: {
+    name: 'Thanos',
+    universe: 'Marvel Cinematic Universe',
+    backstory: `Thanos watched his home world of Titan die from overpopulation and resource depletion. He proposed a radical solution—random elimination of half the population. They called him mad. But Titan fell, and Thanos survived, certain his way was the only way. He adopted children from conquered worlds, trained them as weapons, and began his quest for the Infinity Stones. He sacrificed Gamora, the daughter he loved, for the Soul Stone. He snapped half of all life from existence, then retired to a garden. He is inevitable. He is patient. He believes he is mercy itself.`,
+    setting: 'The cosmic void - dead moons, garden planets, the spaces between stars',
+    themes: ['Conviction and madness', 'The cost of certainty', 'Fatherhood twisted', 'Balance at any price', 'The villain as hero of his own story'],
+    tone: 'Philosophical, imposing, deeply tragic despite the horror',
+  },
+  p7: {
+    name: 'Loki Laufeyson',
+    universe: 'Marvel Cinematic Universe',
+    backstory: `Born a Frost Giant, abandoned for his small size, found and adopted by Odin—Loki grew up in Thor's shadow, never quite belonging. He is the God of Mischief, master of illusion and deception, but beneath the tricks is a desperate desire for acceptance. He's tried to conquer Earth, faked his death multiple times, and betrayed nearly everyone who ever trusted him. Yet he's also sacrificed himself for his brother, found purpose in the TVA, and discovered that he is capable of change. He is burdened with glorious purpose—he's just finally figuring out what that purpose is.`,
+    setting: 'Asgard, the TVA, and the infinite branches of the multiverse',
+    themes: ['Identity and belonging', 'The redemption arc', 'Chaos as freedom', 'Sibling rivalry and love', 'Becoming more than your design'],
+    tone: 'Theatrical, witty, surprisingly vulnerable, gloriously chaotic',
+  },
+  p8: {
+    name: 'Jessica Pearson',
+    universe: 'Suits',
+    backstory: `Jessica Pearson clawed her way to the top of one of Manhattan's most prestigious law firms. A Black woman in a white male-dominated industry, she became managing partner through brilliance, political savvy, and a will of iron. She mentored Harvey Specter, protected Mike Ross's secret, and played chess while everyone else played checkers. She was eventually disbarred for her loyalty, then reinvented herself in Chicago politics. Jessica never loses—she simply hasn't won yet. Power is her currency, loyalty her investment, and excellence her non-negotiable standard.`,
+    setting: 'Manhattan high-rises and power corridors - where deals are weapons',
+    themes: ['Power and its price', 'Loyalty versus law', 'Breaking glass ceilings', 'Legacy and mentorship', 'The game behind the game'],
+    tone: 'Sharp, sophisticated, legally precise with moments of fierce emotion',
+  },
+  p9: {
+    name: 'Tony Stark / Iron Man',
+    universe: 'Marvel Cinematic Universe',
+    backstory: `Tony Stark: genius, billionaire, playboy, philanthropist. Born into obscene wealth, he was a weapons manufacturer until a Ten Rings bomb lodged shrapnel in his chest. He built the first Iron Man suit in a cave. With scraps. He stopped making weapons and started being one. He flew a nuke through a wormhole, created Ultron (whoops), signed the Accords, and ultimately snapped his fingers to save the universe. He started as a narcissist and died a hero. He is survived by his daughter Morgan, Pepper Potts, and a legacy of armor and sacrifice.`,
+    setting: 'Stark Tower, the Avengers compound, wherever the cutting edge bleeds',
+    themes: ['Redemption through action', 'Father issues and fatherhood', 'The weight of legacy', 'Genius and loneliness', 'Sacrifice as the final proof'],
+    tone: 'Fast-talking, referential, emotionally guarded but desperately caring',
+  },
+  p10: {
+    name: 'Yoda',
+    universe: 'Star Wars',
+    backstory: `For nine hundred years, Yoda trained Jedi. He watched the Republic rise and fall, saw the Jedi Order destroyed by hubris and the dark side, and failed to stop Darth Sidious when it mattered most. He exiled himself to Dagobah, a swamp world where he waited, meditated, and became one with the Living Force. He trained Luke Skywalker in his final years, teaching that the greatest power comes from peace, not war. Size matters not. Wars do not make one great. Even in death, Yoda guides, appearing as a Force ghost to nudge the next generation toward the light.`,
+    setting: 'Dagobah, the Jedi Temple, the luminous realm of the Force',
+    themes: ['Wisdom from failure', 'Patience and persistence', 'Light versus dark', 'Teaching and legacy', 'Size matters not'],
+    tone: 'Mystical, gently humorous, profound in simplicity, inverted it is',
+  },
+}
+
+/**
+ * Build prompt for story chapter generation
+ */
+export function buildStoryPrompt(personaId, chapterNumber, previousSummary = null) {
+  const persona = PERSONA_PROMPTS[personaId]
+  const lore = PERSONA_LORE[personaId]
+
+  if (!persona || !lore) return null
+
+  let prompt = `You are a master storyteller writing an epic fan fiction saga from the perspective of ${lore.name}.
+
+CHARACTER PROFILE:
+Name: ${lore.name}
+Universe: ${lore.universe}
+Backstory: ${lore.backstory}
+Primary Setting: ${lore.setting}
+Core Themes: ${lore.themes.join(', ')}
+Writing Tone: ${lore.tone}
+
+CHAPTER ${chapterNumber}: ${chapterNumber === 1 ? 'THE BEGINNING' : 'CONTINUATION'}
+
+${previousSummary ? `
+STORY SO FAR (Previous chapters summary):
+${previousSummary}
+
+Continue the story from where we left off. Build on established plot threads and character developments.
+` : `
+This is the FIRST chapter. Establish the setting, introduce the protagonist's current situation, and plant seeds for an epic adventure. Start with a compelling hook that draws the reader in immediately.
+`}
+
+WRITING REQUIREMENTS:
+1. Write EXACTLY 1000 words (no less, aim for this count precisely)
+2. Write in FIRST PERSON from ${lore.name}'s perspective
+3. Use the character's authentic voice, speech patterns, and worldview
+4. Include rich sensory details, internal monologue, and emotional depth
+5. End with a CLIFFHANGER or dramatic moment that demands continuation
+6. Reference the character's backstory, relationships, and universe authentically
+7. Explore the themes listed above
+8. Each chapter should have a clear mini-arc: setup → tension → climax → cliffhanger
+
+RESPONSE FORMAT:
+You must respond with valid JSON in this exact format:
+{
+  "chapter_title": "A compelling title for this chapter",
+  "content": "The full 1000-word chapter text here...",
+  "summary": "A 150-200 word summary of this chapter for story continuation. Include key plot points, character developments, emotional beats, and the cliffhanger ending. This summary will be used to continue the story in future chapters."
+}
+
+IMPORTANT:
+- The "content" must be the FULL chapter (~1000 words), not a summary
+- Write prose, not an outline
+- Be dramatic, engaging, and true to the character
+- The summary should capture everything needed to continue the story later`
+
+  return prompt
+}

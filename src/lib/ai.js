@@ -151,6 +151,71 @@ export function isAIConfigured() {
 }
 
 /**
+ * Generate a story chapter for the fan fiction feature
+ *
+ * @param {string} personaId - The persona ID (p1-p10)
+ * @param {number} chapterNumber - Current chapter number
+ * @param {string|null} previousSummary - Summary of previous chapters
+ * @returns {Promise<{chapter_title: string, content: string, summary: string}|null>}
+ */
+export async function generateStoryChapter(personaId, chapterNumber, previousSummary = null) {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+
+  if (!apiKey) {
+    console.warn('OpenAI API key not configured')
+    return null
+  }
+
+  const { buildStoryPrompt } = await import('../config/prompts')
+  const prompt = buildStoryPrompt(personaId, chapterNumber, previousSummary)
+
+  if (!prompt) return null
+
+  try {
+    const response = await fetch(OPENAI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o', // Using full GPT-4o for better creative writing
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2500, // ~1000 words + summary + buffer
+        temperature: 0.9, // Higher creativity
+        response_format: { type: 'json_object' },
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      console.error('OpenAI API error:', error)
+      return null
+    }
+
+    const data = await response.json()
+    const content = data.choices[0]?.message?.content
+
+    if (!content) return null
+
+    try {
+      const parsed = JSON.parse(content)
+      return {
+        chapter_title: parsed.chapter_title || `Chapter ${chapterNumber}`,
+        content: parsed.content || '',
+        summary: parsed.summary || '',
+      }
+    } catch {
+      console.error('Failed to parse story response')
+      return null
+    }
+  } catch (error) {
+    console.error('Story generation failed:', error)
+    return null
+  }
+}
+
+/**
  * Get 3-day reflection analysis from AI
  *
  * @param {string} personaId - The persona ID (p1-p10)

@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useProxy } from '../context/ProxyContext'
 import { useAuth } from '../context/AuthContext'
 import { useLedger } from '../hooks/useLedger'
+import { useStory } from '../hooks/useStory'
 import { THEMES } from '../config/themes'
 import { PERSONA_NAMES } from '../config/personas'
-import { getReflectionAnalysis } from '../lib/ai'
+import { getReflectionAnalysis, generateStoryChapter } from '../lib/ai'
+import { StoryChapter } from '../components/story/StoryChapter'
 
 /**
  * 3-Day Reflection Assessment Screen
@@ -18,12 +20,15 @@ export function ReflectionAssessment() {
   const { personaId, completeReflection } = useProxy()
   const { profile } = useAuth()
   const { entries, purgeCompleted } = useLedger()
+  const { chapterNumber, previousSummary, saveChapter, isFirstChapter } = useStory()
   const theme = THEMES[personaId]
   const personaName = PERSONA_NAMES[personaId]
 
-  const [phase, setPhase] = useState('intro') // intro -> analyzing -> report -> exit
+  const [phase, setPhase] = useState('intro') // intro -> analyzing -> report -> story_loading -> story -> exit
   const [analysis, setAnalysis] = useState(null)
   const [error, setError] = useState(null)
+  const [storyData, setStoryData] = useState(null)
+  const [storyError, setStoryError] = useState(false)
 
   // Gather stats for the last 3 days
   const getThreeDayStats = useCallback(() => {
@@ -99,8 +104,38 @@ export function ReflectionAssessment() {
     }
   }, [phase, analysis, personaId, profile, getThreeDayStats])
 
-  // Handle exit - purge completed tasks and return to dashboard
-  const handleExit = async () => {
+  // Handle transition to story phase
+  const handleContinueToStory = async () => {
+    setPhase('story_loading')
+
+    try {
+      // Generate the next chapter
+      const chapter = await generateStoryChapter(personaId, chapterNumber, previousSummary)
+
+      if (chapter) {
+        // Save chapter to database
+        await saveChapter(chapter.content, chapter.summary)
+        setStoryData(chapter)
+        setPhase('story')
+      } else {
+        // Story generation failed, skip to exit
+        setStoryError(true)
+        handleFinalExit()
+      }
+    } catch (err) {
+      console.error('Story generation failed:', err)
+      setStoryError(true)
+      handleFinalExit()
+    }
+  }
+
+  // Handle story completion
+  const handleStoryComplete = () => {
+    handleFinalExit()
+  }
+
+  // Final exit - purge completed tasks and return to dashboard
+  const handleFinalExit = async () => {
     setPhase('exit')
 
     // Purge all completed tasks
@@ -322,13 +357,13 @@ export function ReflectionAssessment() {
               ) : null}
             </div>
 
-            {/* Footer with exit button */}
+            {/* Footer with continue button */}
             <div
               className="flex-none p-4 border-t"
               style={{ borderColor: `${theme.accent}20` }}
             >
               <motion.button
-                onClick={handleExit}
+                onClick={handleContinueToStory}
                 className={`w-full py-3 rounded-lg ${theme.font.display} text-sm font-medium tracking-wider`}
                 style={{
                   backgroundColor: theme.accent,
@@ -337,16 +372,41 @@ export function ReflectionAssessment() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                ACKNOWLEDGE & CLEAR COMPLETED
+                {isFirstChapter ? 'BEGIN YOUR STORY →' : 'CONTINUE YOUR STORY →'}
               </motion.button>
               <p
                 className={`${theme.font.chat} text-xs text-center mt-2`}
                 style={{ color: theme.text.muted }}
               >
-                Completed tasks will be permanently removed
+                {isFirstChapter
+                  ? `${personaName} has a tale to tell you...`
+                  : `Chapter ${chapterNumber} awaits...`
+                }
               </p>
             </div>
           </motion.div>
+        )}
+
+        {/* Story Loading Phase */}
+        {phase === 'story_loading' && (
+          <StoryChapter
+            personaId={personaId}
+            chapterNumber={chapterNumber}
+            isLoading={true}
+          />
+        )}
+
+        {/* Story Phase */}
+        {phase === 'story' && storyData && (
+          <StoryChapter
+            personaId={personaId}
+            chapterNumber={chapterNumber}
+            chapterTitle={storyData.chapter_title}
+            content={storyData.content}
+            previousSummary={!isFirstChapter ? previousSummary : null}
+            onComplete={handleStoryComplete}
+            isLoading={false}
+          />
         )}
 
         {/* Exit Phase */}

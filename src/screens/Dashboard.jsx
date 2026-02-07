@@ -399,11 +399,11 @@ function DropdownMenu({ theme, onClearChat, onLogout, username, isOnline, taskCo
       {isOpen && (
         <>
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[55]"
             onClick={() => setIsOpen(false)}
           />
           <motion.div
-            className="absolute right-0 top-full mt-2 w-48 rounded-lg shadow-xl z-50 overflow-hidden"
+            className="absolute right-0 top-full mt-2 w-48 rounded-lg shadow-xl z-[60] overflow-hidden"
             style={{ backgroundColor: theme.surface }}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}

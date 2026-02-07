@@ -198,23 +198,92 @@ src/config/prompts.js (update action, structured assess)
 
 ---
 
-## Phase 9: Future Enhancements (PLANNED)
+## Phase 9: Vector-Based Onboarding ✅ COMPLETE
+**Goal:** Replace question-based diagnostic with interactive slider-based persona matching.
+
+### Implementation
+- [x] 5D personality vector system (Logic, Discipline, Visibility, Authority, Innovation)
+- [x] KNN matching: Euclidean distance calculation to find closest persona
+- [x] Real-time radar chart (Chart.js) updates as user moves sliders
+- [x] Hidden match indicators (colored bars, persona identity secret until reveal)
+- [x] Convergence animation on "Lock In" (glitch/shatter effect)
+- [x] Match Reveal screen with animated proximity ranking bars
+- [x] Comparison radar: user vector vs winning persona overlay
+- [x] Safe area padding for iOS Dynamic Island
+- [x] Markdown bold parsing in chat bubbles
+
+### Files
+```
+src/config/personas.js (PERSONA_VECTORS, VECTOR_AXES)
+src/lib/vectorMatch.js (euclideanDistance, calculateAllMatches)
+src/components/onboarding/VectorOnboarding.jsx
+src/components/onboarding/RadarChart.jsx
+src/components/onboarding/MatchReveal.jsx
+src/screens/Diagnostic.jsx (refactored)
+src/components/chat/ChatBubble.jsx (parseMarkdownBold)
+```
+
+---
+
+## Phase 10: Generative Stochastic Nudge Engine ✅ COMPLETE
+**Goal:** Replace static notifications with dynamic, LLM-powered engagement system.
+
+### Implementation
+- [x] Stochastic triggering: 70% functional / 30% flavor when tasks exist
+- [x] 100% flavor nudges when no tasks (encouragement/lore)
+- [x] Style rotation: heckler, strategist, companion (random per nudge)
+- [x] Context injection: time of day, day of week, top 3 tasks
+- [x] GPT-4o-mini generates unique 120-char notifications
+- [x] Deduplication: last 3 notifications passed to AI to avoid repetition
+- [x] Persona lore/traits for flavor nudges
+- [x] Fallback to static messages if OpenAI fails
+- [x] `notification_history` table for analytics
+
+### Schema
+```sql
+CREATE TABLE public.notification_history (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE,
+  content text NOT NULL,
+  content_hash text NOT NULL,
+  nudge_type text CHECK (nudge_type IN ('functional', 'flavor')),
+  style text CHECK (style IN ('heckler', 'strategist', 'companion')),
+  persona_id text,
+  sent_at timestamptz DEFAULT now(),
+  opened boolean DEFAULT false,
+  opened_at timestamptz
+);
+```
+
+### Files
+```
+supabase/functions/send-notifications/index.ts (complete rewrite)
+```
+
+### DS Portfolio Value
+- Probabilistic systems (stochastic triggering)
+- NLP/LLM integration (context-aware generation)
+- A/B testing infrastructure (style rotation tracking)
+- Behavioral analytics (engagement by style)
+
+---
+
+## Phase 11: Future Enhancements (PLANNED)
 **Goal:** Additional polish and features.
 
 ### Potential Features
 - [ ] Streaming AI responses (typewriter effect)
 - [ ] Voice input (Speech-to-text)
 - [ ] Settings screen (change persona, clear data)
-- [ ] Analytics (track user journeys)
+- [ ] Analytics dashboard (notification engagement by style)
 - [ ] Error boundaries and loading skeletons
 - [ ] Rate limiting for demo users
 - [ ] Data encryption (client-side)
 - [ ] Email verification
 
 ### Known Bugs to Fix
-- [ ] Wrong task sometimes updated (fuzzy matching edge cases)
-- [ ] Completed tasks not always visible
-- [ ] Assess ledger structure needs refinement
+- [ ] Date/time parsing edge cases ("tomorrow noon")
+- [ ] Fuzzy matching edge cases for task updates
 
 ---
 
